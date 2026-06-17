@@ -1,0 +1,26 @@
+{
+  "name": "atlante-mobilita-roma",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Atlante dei flussi di mobilità di Roma — heatmap H3 + analisi bacini (origine/destinazione, CO₂) su matrice OD.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@deck.gl/core": "^8.9.35",
+    "@deck.gl/geo-layers": "^8.9.35",
+    "@deck.gl/layers": "^8.9.35",
+    "@deck.gl/mapbox": "^8.9.35",
+    "h3-js": "^3.7.2",
+    "maplibre-gl": "^3.6.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.2"
+  }
+}
