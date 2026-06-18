@@ -3,7 +3,7 @@ import { css } from '../utils/css.js';
 import { segStyle, co2Pill } from '../utils/styles.js';
 import RankList from './RankList.jsx';
 
-export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetAreaLevel, onSetAreaMuni, onSetAreaZone, onSetFraz, onSetRadius, onSetDir, onToggleCo2, onClearPoint, onPreset, onNevralgico }) {
+export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetAreaLevel, onSetAreaMuni, onSetAreaZone, onSetFraz, onSetRadius, onSetDir, onToggleCo2, onClearPoint, onNevralgico }) {
   return (
     <div style={css('padding:16px;display:flex;flex-direction:column;gap:16px;')}>
       <div style={css('font-size:12.5px;color:#5c6f82;line-height:1.45;')}>Da dove arrivano e dove vanno gli spostamenti di un'area, in modo <b style={{ color: '#17324d' }}>gerarchico</b>.</div>
@@ -19,14 +19,6 @@ export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetA
         <div style={css('display:flex;flex-direction:column;gap:16px;')}>
           <div>
             <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>Poli di interesse</div>
-            <div style={css('display:flex;flex-wrap:wrap;gap:6px;')}>
-              {v.presets.map((p) => (
-                <button key={p.name} onClick={() => onPreset(p)} style={css('height:30px;padding:0 12px;border:1px solid #c5c7c9;background:#fff;border-radius:40px;font-family:inherit;font-size:12.5px;font-weight:600;color:#003366;cursor:pointer;')}>{p.name}</button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>Punti nevralgici</div>
             <div style={css('display:flex;flex-direction:column;gap:5px;')}>
               {v.puntiNevralgici.map((p) => {
                 const col = p.color;

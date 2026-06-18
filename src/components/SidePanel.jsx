@@ -13,7 +13,7 @@ export default function SidePanel({
   onMetric, onToggle, onSetHeatColor, onSetAuto, onBasemap, onFilter,
   onToggleTime, onHourStart, onHourEnd,
   onSetCatchMode, onSetAreaLevel, onSetAreaMuni, onSetAreaZone, onSetFraz,
-  onSetRadius, onSetDir, onToggleCo2, onClearPoint, onPreset, onNevralgico,
+  onSetRadius, onSetDir, onToggleCo2, onClearPoint, onNevralgico,
 }) {
   return (
     <div ref={sidePanelRef} style={css('flex:none;width:404px;overflow:hidden;background:#fafafa;')}>
@@ -49,7 +49,7 @@ export default function SidePanel({
               onSetAreaMuni={onSetAreaMuni} onSetAreaZone={onSetAreaZone}
               onSetFraz={onSetFraz} onSetRadius={onSetRadius}
               onSetDir={onSetDir} onToggleCo2={onToggleCo2}
-              onClearPoint={onClearPoint} onPreset={onPreset} onNevralgico={onNevralgico}
+              onClearPoint={onClearPoint} onNevralgico={onNevralgico}
             />
           )}
           {s.tab === 'stats' && <StatsTab v={v} />}

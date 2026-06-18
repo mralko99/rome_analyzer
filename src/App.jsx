@@ -4,6 +4,7 @@ import { MapboxOverlay } from '@deck.gl/mapbox';
 import { H3HexagonLayer } from '@deck.gl/geo-layers';
 import { GeoJsonLayer, ArcLayer, ScatterplotLayer, PolygonLayer } from '@deck.gl/layers';
 import { css, B } from './utils/css.js';
+import PUNTI_NEVRALGICI, { nevralgicoColor } from './data/puntiNevralgici.js';
 import AppHeader from './components/AppHeader.jsx';
 import MapView from './components/MapView.jsx';
 import SidePanel from './components/SidePanel.jsx';
@@ -30,7 +31,7 @@ export default class App extends React.Component {
     };
     this.metricRamp = { out: 'navy', inc: 'teal', co2: 'ambra' };
     this.metricShort = { out: 'Uscenti', inc: 'Entranti', co2: 'CO₂' };
-    this.SWATCHES = ['#003366', '#089994', '#cc7a00', '#cc334d', '#008055'];
+    this.SWATCHES = ['#81ecec', '#ff7675', '#0984e3', '#00b894', '#fdcb6e'];
     this.EF = 117;
     this.HFR = [0.004,0.003,0.002,0.002,0.004,0.010,0.030,0.070,0.105,0.072,0.050,0.045,0.050,0.045,0.044,0.050,0.072,0.100,0.088,0.050,0.032,0.020,0.013,0.009];
     this.STYLES = {
@@ -39,23 +40,6 @@ export default class App extends React.Component {
       dark: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
     };
     this.METRIC_LABEL = { out: 'Spostamenti uscenti', inc: 'Spostamenti entranti', co2: 'Emissioni CO₂' };
-    this.PRESETS = [
-      { name: 'Anagnina', lat: 41.84276, lng: 12.58606 },
-      { name: 'Saxa Rubra', lat: 41.974638, lng: 12.49328 },
-      { name: 'Centro (Colosseo)', lat: 41.8902, lng: 12.4922 },
-      { name: 'Tiburtina', lat: 41.9105, lng: 12.5302 },
-    ];
-    this.PUNTI_NEVRALGICI = [
-      { id: 'hub_termini', nome: 'Roma Termini', tipologia: 'Grande Attrattore Centrale', latitudine: 41.9014, longitudine: 12.5005, raggio_cattura_km: 0.8, note: 'Cuore intermodale. Picco assoluto di flussi in entrata con distanze altamente eterogenee.' },
-      { id: 'hub_eur', nome: 'EUR – Palasport', tipologia: 'Polo Direzionale', latitudine: 41.8315, longitudine: 12.4654, raggio_cattura_km: 1.0, note: 'Centro lavorativo quadrante sud. Alta dipendenza da gomma tramite Cristoforo Colombo e Pontina.' },
-      { id: 'hub_anagnina', nome: 'Nodo Anagnina', tipologia: 'Filtro Sud-Est (Park & Ride)', latitudine: 41.8428, longitudine: 12.5860, raggio_cattura_km: 0.6, note: 'Capolinea Metro A e scambio Cotral. Alta conversione da flussi in auto a trasporto pubblico.' },
-      { id: 'hub_ponte_mammolo', nome: 'Ponte Mammolo / Rebibbia', tipologia: 'Filtro Est', latitudine: 41.9216, longitudine: 12.5653, raggio_cattura_km: 0.5, note: "Snodo vitale per i flussi in entrata dall'hinterland est lungo l'asse Tiburtina." },
-      { id: 'hub_saxa_rubra', nome: 'Saxa Rubra', tipologia: 'Polo Direzionale e di Scambio Nord', latitudine: 41.974638, longitudine: 12.493280, raggio_cattura_km: 0.6, note: 'Polo lavorativo e interscambio periferico. Distanze medie percorse molto elevate.' },
-      { id: 'hub_ostia_centro', nome: 'Ostia Lido (Centro)', tipologia: 'Macro-Polo Periferico Costiero', latitudine: 41.7303, longitudine: 12.2825, raggio_cattura_km: 1.2, note: 'Flussi di uscita massicci verso l\'EUR e il centro tramite Via del Mare e ferrovia Roma-Lido.' },
-      { id: 'hub_tor_vergata', nome: 'Policlinico / Campus Tor Vergata', tipologia: 'Attrattore Periferico Estremo', latitudine: 41.8587, longitudine: 12.6300, raggio_cattura_km: 1.5, note: 'Cittadella molto dispersa. Raggio di cattura più ampio necessario per coprire facoltà e ospedale.' },
-      { id: 'hub_ponte_di_nona', nome: 'Ponte di Nona / Roma Est', tipologia: 'Periferia Residenziale Est', latitudine: 41.9168, longitudine: 12.6648, raggio_cattura_km: 1.0, note: 'Emblema dello sprawl urbano. Altissimo tasso di motorizzazione privata e densità emissiva.' },
-      { id: 'hub_casalotti', nome: 'Casalotti / Boccea', tipologia: 'Periferia Residenziale Nord-Ovest', latitudine: 41.9366, longitudine: 12.3855, raggio_cattura_km: 0.8, note: 'Quartiere isolato dalle direttrici su ferro. Forti flussi in uscita dipendenti dalla viabilità ordinaria.' },
-    ];
   }
 
   // ---------- geo helpers ----------
@@ -206,17 +190,8 @@ export default class App extends React.Component {
       layers.push(new ScatterplotLayer({ id: 'hub', data: [{ p: hub }], getPosition: (d) => d.p, getFillColor: [255, 200, 0], getRadius: 8, radiusUnits: 'pixels', stroked: true, getLineColor: [0, 51, 102], lineWidthMinPixels: 2.5 }));
     }
     if (s.bounds) layers.push(new GeoJsonLayer({ id: 'bounds', data: this.boundaryGeo, stroked: true, filled: false, getLineColor: (f) => (s.filterMuni && f.properties.n === s.filterMuni) ? [204, 122, 0, 255] : (dark ? [255, 255, 255, 150] : [0, 51, 102, 150]), getLineWidth: (f) => (s.filterMuni && f.properties.n === s.filterMuni) ? 3 : 1.4, lineWidthUnits: 'pixels', lineWidthMinPixels: 1.2, updateTriggers: { getLineColor: [s.filterMuni, s.basemap], getLineWidth: [s.filterMuni] } }));
-    if (s.showNevralgic) layers.push(new ScatterplotLayer({ id: 'nevralgic', data: this.PUNTI_NEVRALGICI, getPosition: (d) => [d.longitudine, d.latitudine], getFillColor: (d) => this.nevralgicoColor(d.tipologia), getLineColor: [255, 255, 255], getRadius: 9, radiusUnits: 'pixels', stroked: true, lineWidthMinPixels: 2, pickable: true, autoHighlight: true, highlightColor: [255, 240, 150, 120], onClick: (info) => { if (info.object) this.setNevralgicPoint(info.object); } }));
+    if (s.showNevralgic) layers.push(new ScatterplotLayer({ id: 'nevralgic', data: PUNTI_NEVRALGICI, getPosition: (d) => [d.longitudine, d.latitudine], getFillColor: (d) => nevralgicoColor(d.tipologia), getLineColor: [255, 255, 255], getRadius: 9, radiusUnits: 'pixels', stroked: true, lineWidthMinPixels: 2, pickable: true, autoHighlight: true, highlightColor: [255, 240, 150, 120], onClick: (info) => { if (info.object) this.setNevralgicPoint(info.object); } }));
     this.overlay.setProps({ layers });
-  }
-
-  nevralgicoColor(tipologia) {
-    if (/Attrattore Centrale/i.test(tipologia)) return [204, 80, 55];
-    if (/Polo Direzionale/i.test(tipologia)) return [7, 127, 123];
-    if (/Filtro/i.test(tipologia)) return [0, 128, 85];
-    if (/Periferia/i.test(tipologia)) return [204, 51, 77];
-    if (/Macro-Polo/i.test(tipologia)) return [0, 77, 153];
-    return [100, 100, 140];
   }
 
   setNevralgicPoint(p) {
@@ -258,7 +233,6 @@ export default class App extends React.Component {
 
   nearestName(lat, lng) { const c = this.data.cells; let mn = 0, bd = 1e9; for (let id = 1; id <= c.maxId; id++) { if (!c.h3[id]) continue; const d = this.hav(lat, lng, c.lat[id], c.lng[id]); if (d < bd) { bd = d; mn = c.muni[id]; } } return mn ? (this.muniName[mn] || 'Punto selezionato') : 'Area periurbana'; }
   setPoint(lng, lat, name) { this._ptName = name || this.nearestName(lat, lng); this.setState({ hasPoint: true, ptLng: lng, ptLat: lat, mode: 'catchment', catchMode: 'radius', areaLevel: '', tab: 'catchment' }, () => { this.computeCatchment(); this.refresh(); }); }
-  setPreset(p) { this.setPoint(p.lng, p.lat, p.name); if (this.map) this.map.flyTo({ center: [p.lng, p.lat], zoom: 11, duration: 800 }); }
   setRadius(v) { this.setState({ radiusKm: +v }); clearTimeout(this._rt); this._rt = setTimeout(() => { if (this.cat && this.cat.circle) { this.computeCatchment(); this.refresh(); } }, 130); }
   setCatchMode(m) { this.cat = null; this._ptName = null; this.setState({ catchMode: m, mode: 'city', hasPoint: false, areaLevel: '', areaMuni: 0, areaZone: -1, frazId: -1 }, () => this.refresh()); }
   setAreaLevel(v) { this.cat = null; this.setState({ areaLevel: v, mode: 'city', areaMuni: 0, areaZone: -1, frazId: -1 }, () => { if (v === 'capitale' || v === 'comune') { this.setState({ mode: 'catchment' }, () => { this.computeCatchment(); this.refresh(); }); if (this.map) this.map.flyTo({ center: this.gridCenter, zoom: v === 'capitale' ? 9.2 : 10, duration: 700 }); } else this.refresh(); }); }
@@ -320,8 +294,7 @@ export default class App extends React.Component {
       kpiTrips: P ? (P.totals.trips / 1e6).toFixed(2).replace('.', ',') + ' M' : '—', kpiCo2: P ? fmt(P.totals.co2_baseline) : '—', kpiCells: P ? fmt(P.totals.cells) : '—',
       co2Bars: [], modalSegs: [], modalLegend: [], modalAuto: 0, scenari: [], smartPts: '', smartArea: '', smartDots: [], smartGrid: [],
       topOrigins: [], topDests: [], totIn: '0', totOut: '0', intraNote: '', selName: '', selSub: '', selKind: '',
-      presets: this.PRESETS,
-      puntiNevralgici: this.PUNTI_NEVRALGICI.map((p) => ({ ...p, color: this.nevralgicoColor(p.tipologia) })),
+      puntiNevralgici: PUNTI_NEVRALGICI.map((p) => ({ ...p, color: nevralgicoColor(p.tipologia) })),
       hasCatchment: !!this.cat,
     };
     if (this.cat) {
@@ -406,7 +379,6 @@ export default class App extends React.Component {
             onSetDir={(d) => this.setDir(d)}
             onToggleCo2={() => this.toggleCo2()}
             onClearPoint={() => this.clearPoint()}
-            onPreset={(p) => this.setPreset(p)}
             onNevralgico={(p) => this.setNevralgicPoint(p)}
           />
         </div>
