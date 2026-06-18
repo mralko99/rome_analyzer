@@ -3,22 +3,10 @@ import maplibregl from 'maplibre-gl';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import { H3HexagonLayer } from '@deck.gl/geo-layers';
 import { GeoJsonLayer, ArcLayer, ScatterplotLayer, PolygonLayer } from '@deck.gl/layers';
-
-const B = import.meta.env.BASE_URL;
-
-// Parse a CSS declaration string into a React style object (so the original
-// inline-style strings from the design can be reused verbatim).
-function css(str) {
-  const o = {};
-  str.split(';').forEach((d) => {
-    d = d.trim();
-    if (!d) return;
-    const i = d.indexOf(':');
-    const k = d.slice(0, i).trim().replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-    o[k] = d.slice(i + 1).trim();
-  });
-  return o;
-}
+import { css, B } from './utils/css.js';
+import AppHeader from './components/AppHeader.jsx';
+import MapView from './components/MapView.jsx';
+import SidePanel from './components/SidePanel.jsx';
 
 export default class App extends React.Component {
   constructor(props) {
@@ -61,7 +49,7 @@ export default class App extends React.Component {
       { id: 'hub_termini', nome: 'Roma Termini', tipologia: 'Grande Attrattore Centrale', latitudine: 41.9014, longitudine: 12.5005, raggio_cattura_km: 0.8, note: 'Cuore intermodale. Picco assoluto di flussi in entrata con distanze altamente eterogenee.' },
       { id: 'hub_eur', nome: 'EUR – Palasport', tipologia: 'Polo Direzionale', latitudine: 41.8315, longitudine: 12.4654, raggio_cattura_km: 1.0, note: 'Centro lavorativo quadrante sud. Alta dipendenza da gomma tramite Cristoforo Colombo e Pontina.' },
       { id: 'hub_anagnina', nome: 'Nodo Anagnina', tipologia: 'Filtro Sud-Est (Park & Ride)', latitudine: 41.8428, longitudine: 12.5860, raggio_cattura_km: 0.6, note: 'Capolinea Metro A e scambio Cotral. Alta conversione da flussi in auto a trasporto pubblico.' },
-      { id: 'hub_ponte_mammolo', nome: 'Ponte Mammolo / Rebibbia', tipologia: 'Filtro Est', latitudine: 41.9216, longitudine: 12.5653, raggio_cattura_km: 0.5, note: 'Snodo vitale per i flussi in entrata dall\'hinterland est lungo l\'asse Tiburtina.' },
+      { id: 'hub_ponte_mammolo', nome: 'Ponte Mammolo / Rebibbia', tipologia: 'Filtro Est', latitudine: 41.9216, longitudine: 12.5653, raggio_cattura_km: 0.5, note: "Snodo vitale per i flussi in entrata dall'hinterland est lungo l'asse Tiburtina." },
       { id: 'hub_saxa_rubra', nome: 'Saxa Rubra', tipologia: 'Polo Direzionale e di Scambio Nord', latitudine: 41.974638, longitudine: 12.493280, raggio_cattura_km: 0.6, note: 'Polo lavorativo e interscambio periferico. Distanze medie percorse molto elevate.' },
       { id: 'hub_ostia_centro', nome: 'Ostia Lido (Centro)', tipologia: 'Macro-Polo Periferico Costiero', latitudine: 41.7303, longitudine: 12.2825, raggio_cattura_km: 1.2, note: 'Flussi di uscita massicci verso l\'EUR e il centro tramite Via del Mare e ferrovia Roma-Lido.' },
       { id: 'hub_tor_vergata', nome: 'Policlinico / Campus Tor Vergata', tipologia: 'Attrattore Periferico Estremo', latitudine: 41.8587, longitudine: 12.6300, raggio_cattura_km: 1.5, note: 'Cittadella molto dispersa. Raggio di cattura più ampio necessario per coprire facoltà e ospedale.' },
@@ -222,8 +210,6 @@ export default class App extends React.Component {
     this.overlay.setProps({ layers });
   }
 
-  circlePoly(lng, lat, km) { const pts = [], R = 6371, d = km / R, la1 = lat * Math.PI / 180, lo1 = lng * Math.PI / 180; for (let i = 0; i <= 64; i++) { const b = i / 64 * 2 * Math.PI; const la2 = Math.asin(Math.sin(la1) * Math.cos(d) + Math.cos(la1) * Math.sin(d) * Math.cos(b)); const lo2 = lo1 + Math.atan2(Math.sin(b) * Math.sin(d) * Math.cos(la1), Math.cos(d) - Math.sin(la1) * Math.sin(la2)); pts.push([lo2 * 180 / Math.PI, la2 * 180 / Math.PI]); } return pts; }
-
   nevralgicoColor(tipologia) {
     if (/Attrattore Centrale/i.test(tipologia)) return [204, 80, 55];
     if (/Polo Direzionale/i.test(tipologia)) return [7, 127, 123];
@@ -239,6 +225,8 @@ export default class App extends React.Component {
     this.setState({ hasPoint: true, ptLng: p.longitudine, ptLat: p.latitudine, mode: 'catchment', catchMode: 'radius', areaLevel: '', tab: 'catchment', radiusKm: p.raggio_cattura_km }, () => { this.computeCatchment(); this.refresh(); });
     if (this.map) this.map.flyTo({ center: [p.longitudine, p.latitudine], zoom: 12, duration: 800 });
   }
+
+  circlePoly(lng, lat, km) { const pts = [], R = 6371, d = km / R, la1 = lat * Math.PI / 180, lo1 = lng * Math.PI / 180; for (let i = 0; i <= 64; i++) { const b = i / 64 * 2 * Math.PI; const la2 = Math.asin(Math.sin(la1) * Math.cos(d) + Math.cos(la1) * Math.sin(d) * Math.cos(b)); const lo2 = lo1 + Math.atan2(Math.sin(b) * Math.sin(d) * Math.cos(la1), Math.cos(d) - Math.sin(la1) * Math.sin(la2)); pts.push([lo2 * 180 / Math.PI, la2 * 180 / Math.PI]); } return pts; }
 
   gradStr(stops) { return `linear-gradient(90deg, ${stops.map((c, i) => `rgb(${c[0]},${c[1]},${c[2]}) ${(i / (stops.length - 1) * 100).toFixed(0)}%`).join(',')})`; }
   bothGradStr() { const a = this.ramp(.7, this.stopsForMetric('inc')), b = this.ramp(.7, this.stopsForMetric('out')); return `linear-gradient(90deg, rgb(${a.join(',')}), #b8b08a, rgb(${b.join(',')}))`; }
@@ -300,13 +288,7 @@ export default class App extends React.Component {
   }
 
   // ---------- style helpers ----------
-  segStyle(a) { return { flex: '1', height: '32px', border: 'none', borderRadius: '4px', fontFamily: 'inherit', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer', background: a ? '#003366' : '#f5f5f5', color: a ? '#fff' : '#5c6f82' }; }
-  rowStyle() { return { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', height: '34px', padding: '0 11px', border: '1px solid #ebeced', borderRadius: '4px', background: '#fff', fontFamily: 'inherit', fontSize: '13.5px', fontWeight: '600', color: '#17324d', cursor: 'pointer' }; }
-  pill(on) { return { fontSize: '11px', fontWeight: '700', padding: '2px 9px', borderRadius: '40px', background: on ? '#003366' : '#ebeced', color: on ? '#fff' : '#768594' }; }
-  co2Pill(on) { return { height: '24px', padding: '0 11px', borderRadius: '40px', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '11px', fontWeight: '700', background: on ? '#cc7a00' : '#ebeced', color: on ? '#fff' : '#768594' }; }
-  tabStyle(a) { return { flex: '1', height: '32px', border: 'none', borderRadius: '4px', fontFamily: 'inherit', fontSize: '13px', fontWeight: '600', cursor: 'pointer', background: a ? '#003366' : '#f5f5f5', color: a ? '#fff' : '#5c6f82' }; }
-  swatchStyle(hex, sel) { return { width: '26px', height: '26px', borderRadius: '4px', background: hex, cursor: 'pointer', padding: '0', border: sel ? '2px solid #003366' : '1px solid #c5c7c9', boxShadow: sel ? '0 0 0 2px #fff inset' : 'none' }; }
-  autoChip(sel) { return { height: '28px', padding: '0 12px', borderRadius: '4px', fontFamily: 'inherit', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer', border: sel ? 'none' : '1px solid #c5c7c9', background: sel ? '#003366' : '#fff', color: sel ? '#fff' : '#5c6f82' }; }
+  // (moved to src/utils/styles.js)
 
   viewModel() {
     const s = this.state, P = this.data && this.data.panels, fmt = (n) => Math.round(n).toLocaleString('it-IT');
@@ -338,6 +320,9 @@ export default class App extends React.Component {
       kpiTrips: P ? (P.totals.trips / 1e6).toFixed(2).replace('.', ',') + ' M' : '—', kpiCo2: P ? fmt(P.totals.co2_baseline) : '—', kpiCells: P ? fmt(P.totals.cells) : '—',
       co2Bars: [], modalSegs: [], modalLegend: [], modalAuto: 0, scenari: [], smartPts: '', smartArea: '', smartDots: [], smartGrid: [],
       topOrigins: [], topDests: [], totIn: '0', totOut: '0', intraNote: '', selName: '', selSub: '', selKind: '',
+      presets: this.PRESETS,
+      puntiNevralgici: this.PUNTI_NEVRALGICI.map((p) => ({ ...p, color: this.nevralgicoColor(p.tipologia) })),
+      hasCatchment: !!this.cat,
     };
     if (this.cat) {
       const c = this.data.cells, co2 = s.catchCo2;
@@ -373,419 +358,57 @@ export default class App extends React.Component {
 
   render() {
     const s = this.state, v = this.viewModel();
-    const pad = (h) => String(h).padStart(2, '0');
     const showClickHint = !s.loading && s.mode === 'city' && s.tab !== 'stats';
     return (
       <div style={css('display:flex;flex-direction:column;height:100vh;width:100vw;overflow:hidden;background:#f5f5f5;')}>
-        <header style={css('flex:none;height:56px;background:#003366;display:flex;align-items:center;padding:0 20px;gap:16px;color:#fff;z-index:30;box-shadow:0 4px 4px rgba(0,0,0,.05);')}>
-          <div style={css('width:30px;height:30px;border:2px solid rgba(255,255,255,.85);border-radius:4px;display:flex;align-items:center;justify-content:center;flex:none;')}>
-            <div style={{ width: '13px', height: '15px', background: 'rgba(255,255,255,.9)', clipPath: 'polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)' }} />
-          </div>
-          <div style={css('display:flex;flex-direction:column;line-height:1.15;')}>
-            <span style={css('font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.65);font-weight:600;')}>Roma Capitale · Mobilità urbana</span>
-            <span style={css('font-size:18px;font-weight:700;letter-spacing:-.2px;')}>Atlante dei flussi · griglia H3</span>
-          </div>
-          <div style={{ flex: 1 }} />
-          <button onClick={() => this.exportPNG()} style={css('display:flex;align-items:center;gap:7px;height:34px;padding:0 15px;background:#fff;color:#003366;border:none;border-radius:4px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;')}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12M7 11l5 4 5-4M4 19h16" /></svg>
-            Esporta PNG
-          </button>
-        </header>
+        <AppHeader onExport={() => this.exportPNG()} />
 
         <div style={css('flex:1;display:flex;flex-direction:row;min-height:0;position:relative;')}>
-          <div style={css('flex:1;position:relative;min-width:0;background:#e8eaed;')}>
-            <div ref={(el) => (this.mapEl = el)} style={css('position:absolute;inset:0;')} />
+          <MapView
+            mapRef={(el) => (this.mapEl = el)}
+            legendBarRef={(el) => (this.legendBar = el)}
+            loading={s.loading}
+            loadMsg={s.loadMsg}
+            errorMsg={s.errorMsg}
+            panelOpen={s.panelOpen}
+            showClickHint={showClickHint}
+            legendTitle={v.legendTitle}
+            legendMin={v.legendMin}
+            legendMax={v.legendMax}
+            legendUnit={v.legendUnit}
+            onOpenPanel={() => this.setPanel(true)}
+          />
 
-            {!s.panelOpen && (
-              <button onClick={() => this.setPanel(true)} style={css('position:absolute;top:14px;left:14px;z-index:12;display:flex;align-items:center;gap:7px;height:36px;padding:0 14px;background:#003366;color:#fff;border:none;border-radius:4px;font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;box-shadow:0 8px 16px rgba(0,0,0,.10);')}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" /></svg>
-                Pannello dati
-              </button>
-            )}
-
-            {showClickHint && (
-              <div style={css('position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:8;background:#003366;color:#fff;border-radius:40px;padding:7px 16px;font-size:12.5px;font-weight:600;box-shadow:0 8px 16px rgba(0,0,0,.15);display:flex;align-items:center;gap:8px;')}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /><circle cx="12" cy="12" r="4" /></svg>
-                Clicca un punto qualsiasi per analizzare il suo bacino di mobilità
-              </div>
-            )}
-
-            <div style={css('position:absolute;bottom:14px;left:14px;z-index:6;background:rgba(255,255,255,.94);border-radius:4px;padding:9px 12px;box-shadow:0 4px 4px rgba(0,0,0,.06);min-width:200px;')}>
-              <div style={css('font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#5c6f82;margin-bottom:6px;')}>{v.legendTitle}</div>
-              <div ref={(el) => (this.legendBar = el)} style={css('height:9px;border-radius:2px;background:#ebeced;')} />
-              <div style={css('display:flex;justify-content:space-between;margin-top:3px;')}>
-                <span style={css('font-size:10px;color:#929da9;')}>{v.legendMin}</span>
-                <span style={css('font-size:10px;color:#5c6f82;font-weight:600;')}>{v.legendMax} <span style={css('color:#929da9;font-weight:400;')}>{v.legendUnit}</span></span>
-              </div>
-            </div>
-
-            {s.loading && (
-              <div style={css('position:absolute;inset:0;background:rgba(245,245,245,.96);z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;')}>
-                <div style={{ width: '38px', height: '38px', border: '3px solid #d9dadb', borderTopColor: '#003366', borderRadius: '50%', animation: 'amspin .9s linear infinite' }} />
-                <div style={css('font-size:14px;color:#5c6f82;font-weight:600;')}>{s.loadMsg}</div>
-              </div>
-            )}
-            {s.errorMsg && (
-              <div style={css('position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:21;background:#fbeff1;border:1px solid #cc334d;border-radius:4px;padding:16px 20px;max-width:340px;color:#7a1f2e;font-size:14px;')}>{s.errorMsg}</div>
-            )}
-          </div>
-
-          <div ref={(el) => (this.rightCol = el)} style={css('flex:none;width:404px;overflow:hidden;background:#fafafa;')}>
-            <div ref={(el) => (this.drawer = el)} style={css('height:100%;display:flex;flex-direction:column;border-left:1px solid #ebeced;background:#fafafa;')}>
-              <div style={css('flex:none;display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:#fff;border-bottom:1px solid #ebeced;')}>
-                <span style={css('font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#003366;')}>Dati e grafici</span>
-                <button onClick={() => this.setPanel(false)} title="Chiudi pannello" style={css('display:flex;align-items:center;gap:6px;height:28px;padding:0 11px;border:1px solid #ebeced;background:#fff;border-radius:4px;cursor:pointer;color:#5c6f82;font-family:inherit;font-size:12.5px;font-weight:600;')}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="m13 5 7 7-7 7M20 12H4" /></svg>
-                  Chiudi
-                </button>
-              </div>
-
-              <div style={css('flex:none;display:flex;gap:3px;padding:9px 12px;background:#fff;border-bottom:1px solid #ebeced;')}>
-                <button onClick={() => this.setTab('settings')} style={this.tabStyle(s.tab === 'settings')}>Impostazioni</button>
-                <button onClick={() => this.setTab('catchment')} style={this.tabStyle(s.tab === 'catchment')}>Bacino</button>
-                <button onClick={() => this.setTab('stats')} style={this.tabStyle(s.tab === 'stats')}>Statistiche</button>
-              </div>
-
-              <div style={css('flex:1;overflow-y:auto;')}>
-                {s.tab === 'settings' && this.renderSettings(s, v)}
-                {s.tab === 'catchment' && this.renderCatchment(s, v, pad)}
-                {s.tab === 'stats' && this.renderStats(v)}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  renderSettings(s, v) {
-    return (
-      <div style={css('padding:16px;display:flex;flex-direction:column;gap:18px;')}>
-        <div>
-          <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:8px;')}>Metrica heatmap città</div>
-          <div style={css('display:flex;gap:5px;')}>
-            <button onClick={() => this.setMetric('out')} style={this.segStyle(s.metric === 'out')}>Uscenti</button>
-            <button onClick={() => this.setMetric('inc')} style={this.segStyle(s.metric === 'inc')}>Entranti</button>
-            <button onClick={() => this.setMetric('co2')} style={this.segStyle(s.metric === 'co2')}>CO₂</button>
-          </div>
-        </div>
-        <div>
-          <div style={css('display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px;')}>
-            <span style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;')}>Colore — {v.metricLabelShort}</span>
-            <span style={css('font-size:12.5px;font-weight:700;color:#003366;')}>{v.heatModeName}</span>
-          </div>
-          <div style={css('font-size:10px;color:#a3adb7;margin-bottom:8px;')}>Ogni metrica salva il proprio colore.</div>
-          <div style={css('display:flex;gap:7px;align-items:center;flex-wrap:wrap;')}>
-            <button onClick={() => this.setAuto()} style={this.autoChip(!s.heatColors[s.metric])}>Auto</button>
-            {this.SWATCHES.map((hex) => (
-              <button key={hex} onClick={() => this.setHeatColor(hex)} title={hex} style={this.swatchStyle(hex, s.heatColors[s.metric] === hex)} />
-            ))}
-            <label style={css('display:flex;align-items:center;gap:5px;margin-left:2px;cursor:pointer;')}>
-              <input type="color" value={v.heatColorValue} onInput={(e) => this.setHeatColor(e.target.value)} onChange={(e) => this.setHeatColor(e.target.value)} />
-              <span style={css('font-size:11px;color:#768594;font-weight:600;')}>scegli</span>
-            </label>
-          </div>
-          <div ref={(el) => (this.colorPreview = el)} style={css('height:10px;border-radius:2px;margin-top:9px;background:#ebeced;')} />
-        </div>
-        <div>
-          <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:8px;')}>Livelli</div>
-          <div style={css('display:flex;flex-direction:column;gap:8px;')}>
-            <button onClick={() => this.toggle('heatmap')} style={this.rowStyle()}><span>Heatmap dati</span><span style={this.pill(s.heatmap)}>{s.heatmap ? 'ON' : 'OFF'}</span></button>
-            <button onClick={() => this.toggle('grid')} style={this.rowStyle()}><span>Griglia H3</span><span style={this.pill(s.grid)}>{s.grid ? 'ON' : 'OFF'}</span></button>
-            <button onClick={() => this.toggle('bounds')} style={this.rowStyle()}><span>Confini municipi</span><span style={this.pill(s.bounds)}>{s.bounds ? 'ON' : 'OFF'}</span></button>
-            <button onClick={() => this.toggle('showNevralgic')} style={this.rowStyle()}><span>Punti nevralgici</span><span style={this.pill(s.showNevralgic)}>{s.showNevralgic ? 'ON' : 'OFF'}</span></button>
-          </div>
-        </div>
-        <div>
-          <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>Mappa base</div>
-          <select onChange={(e) => this.setBasemapVal(e.target.value)} value={s.basemap} style={css('width:100%;height:36px;border:1px solid #c5c7c9;border-radius:4px;padding:0 9px;font-family:inherit;font-size:14px;color:#17324d;background:#fff;cursor:pointer;')}>
-            <option value="positron">Chiara (Positron)</option>
-            <option value="voyager">Stradale (Voyager)</option>
-            <option value="dark">Scura (Dark Matter)</option>
-          </select>
-        </div>
-        <div>
-          <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>Filtra municipio</div>
-          <select onChange={(e) => this.setFilterVal(e.target.value)} value={String(s.filterMuni)} style={css('width:100%;height:36px;border:1px solid #c5c7c9;border-radius:4px;padding:0 9px;font-family:inherit;font-size:14px;color:#17324d;background:#fff;cursor:pointer;')}>
-            <option value="0">Tutta l'area metropolitana</option>
-            {v.municipiOptions.map((o) => <option key={o.n} value={o.n}>{o.label}</option>)}
-          </select>
-        </div>
-        <div>
-          <div style={css('display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;')}>
-            <span style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;')}>Fascia oraria</span>
-            <button onClick={() => this.toggleTime()} style={this.pill(s.timeEnabled)}>{s.timeEnabled ? 'Attivo' : 'Off'}</button>
-          </div>
-          <div style={css('display:flex;align-items:center;gap:10px;margin-bottom:9px;')}>
-            <span style={css('width:34px;flex:none;font-size:11px;font-weight:600;color:#768594;')}>Dalle</span>
-            <input type="range" min="0" max="23" step="1" value={s.hourStart} onChange={(e) => this.setHourStart(e.target.value)} disabled={!s.timeEnabled} />
-            <span style={css('width:42px;flex:none;text-align:right;font-size:13px;font-weight:700;color:#17324d;font-variant-numeric:tabular-nums;')}>{v.hourStartLabel}</span>
-          </div>
-          <div style={css('display:flex;align-items:center;gap:10px;')}>
-            <span style={css('width:34px;flex:none;font-size:11px;font-weight:600;color:#768594;')}>Alle</span>
-            <input type="range" min="0" max="23" step="1" value={s.hourEnd} onChange={(e) => this.setHourEnd(e.target.value)} disabled={!s.timeEnabled} />
-            <span style={css('width:42px;flex:none;text-align:right;font-size:13px;font-weight:700;color:#17324d;font-variant-numeric:tabular-nums;')}>{v.hourEndLabel}</span>
-          </div>
-          <div style={css('display:flex;justify-content:space-between;align-items:baseline;margin-top:8px;')}>
-            <span style={css('font-size:13px;font-weight:600;color:#003366;')}>{v.hourRangeLabel}</span>
-            <span style={css('font-size:11px;color:#929da9;')}>{v.hourShare}</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  renderCatchment(s, v) {
-    return (
-      <div style={css('padding:16px;display:flex;flex-direction:column;gap:16px;')}>
-        <div style={css('font-size:12.5px;color:#5c6f82;line-height:1.45;')}>Da dove arrivano e dove vanno gli spostamenti di un'area, in modo <b style={{ color: '#17324d' }}>gerarchico</b>.</div>
-        <div>
-          <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>Tipo di bacino</div>
-          <div style={css('display:flex;gap:5px;')}>
-            <button onClick={() => this.setCatchMode('radius')} style={this.segStyle(s.catchMode === 'radius')}>Raggio attorno a un punto</button>
-            <button onClick={() => this.setCatchMode('area')} style={this.segStyle(s.catchMode === 'area')}>Area amministrativa</button>
-          </div>
-        </div>
-
-        {s.catchMode === 'radius' && (
-          <div style={css('display:flex;flex-direction:column;gap:16px;')}>
-            <div>
-              <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>Poli di interesse</div>
-              <div style={css('display:flex;flex-wrap:wrap;gap:6px;')}>
-                {this.PRESETS.map((p) => (
-                  <button key={p.name} onClick={() => this.setPreset(p)} style={css('height:30px;padding:0 12px;border:1px solid #c5c7c9;background:#fff;border-radius:40px;font-family:inherit;font-size:12.5px;font-weight:600;color:#003366;cursor:pointer;')}>{p.name}</button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>Punti nevralgici</div>
-              <div style={css('display:flex;flex-direction:column;gap:5px;')}>
-                {this.PUNTI_NEVRALGICI.map((p) => {
-                  const col = this.nevralgicoColor(p.tipologia);
-                  const active = this.state.hasPoint && Math.abs(this.state.ptLat - p.latitudine) < 0.0001 && Math.abs(this.state.ptLng - p.longitudine) < 0.0001;
-                  return (
-                    <button key={p.id} onClick={() => this.setNevralgicPoint(p)} style={{ display: 'flex', alignItems: 'center', gap: '9px', height: '38px', padding: '0 11px', border: active ? `2px solid rgb(${col.join(',')})` : '1px solid #ebeced', background: active ? `rgba(${col.join(',')},0.07)` : '#fff', borderRadius: '6px', fontFamily: 'inherit', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
-                      <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: `rgb(${col.join(',')})`, flexShrink: 0, border: '2px solid white', boxShadow: `0 0 0 1.5px rgb(${col.join(',')})` }} />
-                      <span style={{ flex: 1, minWidth: 0 }}>
-                        <span style={{ fontSize: '13px', fontWeight: '700', color: '#17324d', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome}</span>
-                        <span style={{ fontSize: '10px', color: '#929da9', fontWeight: '600' }}>{p.tipologia} · {p.raggio_cattura_km} km</span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div>
-              <div style={css('display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;')}>
-                <span style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;')}>Raggio del bacino</span>
-                <span style={css('font-size:13.5px;font-weight:700;color:#003366;')}>{v.radiusLabel}</span>
-              </div>
-              <input type="range" min="0.2" max="10" step="0.1" value={s.radiusKm} onChange={(e) => this.setRadius(e.target.value)} />
-              <div style={css('display:flex;justify-content:space-between;margin-top:2px;')}><span style={css('font-size:10px;color:#a3adb7;')}>200 m</span><span style={css('font-size:10px;color:#a3adb7;')}>10 km</span></div>
-            </div>
-          </div>
-        )}
-
-        {s.catchMode === 'area' && (
-          <div style={css('display:flex;flex-direction:column;gap:13px;')}>
-            <div>
-              <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>Ambito (livello)</div>
-              <select onChange={(e) => this.setAreaLevel(e.target.value)} value={s.areaLevel} style={css('width:100%;height:36px;border:1px solid #c5c7c9;border-radius:4px;padding:0 9px;font-family:inherit;font-size:14px;color:#17324d;background:#fff;cursor:pointer;')}>
-                <option value="">— scegli un livello —</option>
-                <option value="capitale">Roma Capitale — intera area metropolitana</option>
-                <option value="comune">Comune di Roma — tutta la città</option>
-                <option value="municipio">Municipio di Roma</option>
-                <option value="zona">Zona / Rione / Quartiere</option>
-                <option value="frazione">Frazione dell'area metropolitana</option>
-              </select>
-            </div>
-            {(s.areaLevel === 'municipio' || s.areaLevel === 'zona') && (
-              <div>
-                <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>{s.areaLevel === 'zona' ? 'Filtra per municipio (opzionale)' : 'Seleziona municipio'}</div>
-                <select onChange={(e) => this.setAreaMuni(e.target.value)} value={String(s.areaMuni)} style={css('width:100%;height:36px;border:1px solid #c5c7c9;border-radius:4px;padding:0 9px;font-family:inherit;font-size:14px;color:#17324d;background:#fff;cursor:pointer;')}>
-                  <option value="0">{s.areaLevel === 'zona' ? 'Tutti i municipi' : '— scegli un municipio —'}</option>
-                  {v.municipiOptions.map((o) => <option key={o.n} value={o.n}>{o.label}</option>)}
-                </select>
-              </div>
-            )}
-            {s.areaLevel === 'zona' && (
-              <div>
-                <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>Zona / Rione / Quartiere</div>
-                <select onChange={(e) => this.setAreaZone(e.target.value)} value={String(s.areaZone)} style={css('width:100%;height:36px;border:1px solid #c5c7c9;border-radius:4px;padding:0 9px;font-family:inherit;font-size:14px;color:#17324d;background:#fff;cursor:pointer;')}>
-                  <option value="-1">— scegli una zona ({v.zoneCount}) —</option>
-                  {v.zoneOptions.map((z) => <option key={z.id} value={z.id}>{z.label}</option>)}
-                </select>
-              </div>
-            )}
-            {s.areaLevel === 'frazione' && (
-              <div>
-                <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>Frazione · raggio {v.radiusLabel}</div>
-                <select onChange={(e) => this.setFraz(e.target.value)} value={String(s.frazId)} style={css('width:100%;height:36px;border:1px solid #c5c7c9;border-radius:4px;padding:0 9px;font-family:inherit;font-size:14px;color:#17324d;background:#fff;cursor:pointer;')}>
-                  <option value="-1">— scegli una frazione ({v.frazCount}) —</option>
-                  {v.frazOptions.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-                </select>
-                <input type="range" min="0.2" max="10" step="0.1" value={s.radiusKm} onChange={(e) => this.setRadius(e.target.value)} style={{ marginTop: '9px' }} />
-              </div>
-            )}
-          </div>
-        )}
-
-        <div>
-          <div style={css('display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;')}>
-            <span style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;')}>Direzione visualizzata</span>
-            <button onClick={() => this.toggleCo2()} style={this.co2Pill(s.catchCo2)}>CO₂ {s.catchCo2 ? 'ON' : 'OFF'}</button>
-          </div>
-          <div style={css('display:flex;gap:5px;')}>
-            <button onClick={() => this.setDir('in')} style={this.segStyle(s.catchDir === 'in')}>Entrata</button>
-            <button onClick={() => this.setDir('out')} style={this.segStyle(s.catchDir === 'out')}>Uscita</button>
-            <button onClick={() => this.setDir('both')} style={this.segStyle(s.catchDir === 'both')}>Entrambi</button>
-          </div>
-          {s.catchDir === 'both' && !s.catchCo2 && (
-            <>
-              <div style={{ ...css('height:9px;border-radius:2px;margin-top:9px;'), background: this.bothGradStr() }} />
-              <div style={css('display:flex;justify-content:space-between;margin-top:3px;font-size:10px;color:#768594;font-weight:600;')}><span>prevale entrata</span><span>prevale uscita</span></div>
-            </>
-          )}
-          {s.catchCo2 && (
-            <div style={css('font-size:10px;color:#a3adb7;margin-top:7px;line-height:1.35;')}>CO₂ stimata: spostamenti × distanza dal centro del bacino × 117 g/km.</div>
-          )}
-        </div>
-
-        {this.cat ? (
-          <div style={css('border-top:1px solid #ebeced;padding-top:14px;display:flex;flex-direction:column;gap:14px;')}>
-            <div style={css('display:flex;align-items:center;justify-content:space-between;')}>
-              <div>
-                <div style={css('font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#089994;')}>{v.selKind}</div>
-                <div style={css('font-size:14px;font-weight:700;color:#003366;')}>{v.selName}</div>
-                <div style={css("font-size:11px;color:#929da9;font-family:'Roboto Mono',monospace;")}>{v.selSub}</div>
-              </div>
-              <button onClick={() => this.clearPoint()} style={css('height:28px;padding:0 11px;border:1px solid #ebeced;background:#fff;border-radius:4px;cursor:pointer;color:#5c6f82;font-family:inherit;font-size:12.5px;font-weight:600;')}>Azzera</button>
-            </div>
-            <div style={css('display:grid;grid-template-columns:1fr 1fr;gap:8px;')}>
-              <div style={css('background:#f6e4c8;border-radius:4px;padding:10px 12px;')}>
-                <div style={css('font-size:10px;color:#995c00;font-weight:600;')}>{v.inLabel}</div>
-                <div style={css("font-family:'Lora',serif;font-size:22px;font-weight:600;color:#995c00;font-variant-numeric:tabular-nums;")}>{v.totIn}</div>
-              </div>
-              <div style={css('background:#ccfffd;border-radius:4px;padding:10px 12px;')}>
-                <div style={css('font-size:10px;color:#077f7b;font-weight:600;')}>{v.outLabel}</div>
-                <div style={css("font-family:'Lora',serif;font-size:22px;font-weight:600;color:#05615e;font-variant-numeric:tabular-nums;")}>{v.totOut}</div>
-              </div>
-            </div>
-            <div style={css('font-size:11.5px;color:#929da9;margin-top:-6px;')}>{v.intraNote}</div>
-            {this.renderRanks('Da dove arrivano', 'origine', v.topOrigins, '#cc7a00')}
-            {this.renderRanks('Dove vanno', 'destinazione', v.topDests, '#089994')}
-          </div>
-        ) : (
-          <div style={css('border-top:1px solid #ebeced;padding-top:16px;display:flex;gap:10px;align-items:flex-start;color:#5c6f82;')}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5c6f82" strokeWidth="2" style={{ flex: 'none', marginTop: '1px' }}><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /><circle cx="12" cy="12" r="4" /></svg>
-            <span style={css('font-size:12.5px;line-height:1.4;')}>{v.noSelHint}</span>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  renderRanks(title, sub, rows, color) {
-    return (
-      <div>
-        <div style={css('font-size:13px;font-weight:700;color:#003366;margin-bottom:9px;')}>{title} <span style={css('font-weight:400;color:#929da9;')}>· {sub}</span></div>
-        <div style={css('display:flex;flex-direction:column;gap:7px;')}>
-          {rows.map((r, i) => (
-            <div key={i} style={css('display:flex;align-items:center;gap:9px;')}>
-              <span style={css('width:118px;flex:none;font-size:12px;font-weight:600;color:#17324d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;')}>{r.name}</span>
-              <div style={css('flex:1;height:12px;background:#ebeced;border-radius:3px;overflow:hidden;')}><div style={{ height: '100%', borderRadius: '3px', background: color, width: r.pct + '%' }} /></div>
-              <span style={css('width:52px;flex:none;text-align:right;font-size:12px;font-weight:600;color:#5c6f82;font-variant-numeric:tabular-nums;')}>{r.flux}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  renderStats(v) {
-    const kpi = (label, val, color) => (
-      <div style={css('background:#fff;padding:13px 14px;')}>
-        <div style={css('font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#768594;')}>{label}</div>
-        <div style={{ fontFamily: "'Lora',serif", fontSize: '24px', fontWeight: 600, color, letterSpacing: '-.5px', fontVariantNumeric: 'tabular-nums' }}>{val}</div>
-      </div>
-    );
-    return (
-      <div>
-        <div style={css('display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:#ebeced;border-bottom:1px solid #ebeced;')}>
-          {kpi('Spostamenti/g', v.kpiTrips, '#003366')}
-          {kpi('CO₂ t/g', v.kpiCo2, '#cc7a00')}
-          {kpi('Celle H3', v.kpiCells, '#17324d')}
-        </div>
-        <div style={css('padding:15px 16px;border-bottom:1px solid #ebeced;')}>
-          <div style={css('font-size:15px;font-weight:700;color:#003366;')}>CO₂ per municipio</div>
-          <div style={css('font-size:11.5px;color:#929da9;margin-bottom:11px;')}>Tonnellate/giorno · stima dai flussi pendolari</div>
-          <div style={css('display:flex;flex-direction:column;gap:7px;')}>
-            {v.co2Bars.map((b, i) => (
-              <div key={i} style={css('display:flex;align-items:center;gap:9px;')}>
-                <span style={css('width:58px;flex:none;font-size:12px;font-weight:600;color:#17324d;')}>{b.name}</span>
-                <div style={css('flex:1;height:13px;background:#ebeced;border-radius:3px;overflow:hidden;')}><div style={{ height: '100%', borderRadius: '3px', background: b.color, width: b.pct + '%' }} /></div>
-                <span style={css("width:44px;flex:none;text-align:right;font-family:'Lora',serif;font-size:13px;font-weight:600;color:#17324d;font-variant-numeric:tabular-nums;")}>{b.co2Label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div style={css('padding:15px 16px;border-bottom:1px solid #ebeced;')}>
-          <div style={css('font-size:15px;font-weight:700;color:#003366;')}>Ripartizione modale</div>
-          <div style={css('font-size:11.5px;color:#929da9;margin-bottom:9px;')}>Media città · pesata per popolazione</div>
-          <div style={css('display:flex;align-items:center;gap:18px;')}>
-            <svg width="116" height="116" viewBox="0 0 140 140" style={{ flex: 'none' }}>
-              <circle cx="70" cy="70" r="50" fill="none" stroke="#ebeced" strokeWidth="18" />
-              <g transform="rotate(-90 70 70)">
-                {v.modalSegs.map((sg, i) => <circle key={i} cx="70" cy="70" r="50" fill="none" stroke={sg.color} strokeWidth="18" strokeDasharray={sg.dash} strokeDashoffset={sg.off} />)}
-              </g>
-              <text x="70" y="66" textAnchor="middle" fontFamily="Lora" fontSize="26" fontWeight="600" fill="#003366">{v.modalAuto}%</text>
-              <text x="70" y="82" textAnchor="middle" fontFamily="Titillium Web" fontSize="10" fontWeight="600" fill="#768594">AUTO</text>
-            </svg>
-            <div style={css('flex:1;display:flex;flex-direction:column;gap:9px;')}>
-              {v.modalLegend.map((m, i) => (
-                <div key={i} style={css('display:flex;align-items:center;gap:8px;')}>
-                  <div style={{ width: '11px', height: '11px', borderRadius: '2px', background: m.color, flex: 'none' }} />
-                  <div style={css('flex:1;font-size:13px;color:#17324d;')}>{m.label}</div>
-                  <div style={css('font-size:14px;font-weight:700;color:#003366;font-variant-numeric:tabular-nums;')}>{m.pct}%</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div style={css('padding:15px 16px;border-bottom:1px solid #ebeced;')}>
-          <div style={css('font-size:15px;font-weight:700;color:#003366;')}>Scenari di intervento</div>
-          <div style={css('font-size:11.5px;color:#929da9;margin-bottom:9px;')}>CO₂ t/g e riduzione vs baseline</div>
-          <div style={css('display:flex;flex-direction:column;gap:9px;')}>
-            {v.scenari.map((sc, i) => (
-              <div key={i}>
-                <div style={css('display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;')}>
-                  <span style={css('font-size:12.5px;color:#17324d;font-weight:600;')}>{sc.name}</span>
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: sc.ridColor, fontVariantNumeric: 'tabular-nums' }}>{sc.rid}</span>
-                </div>
-                <div style={css('height:14px;background:#ebeced;border-radius:3px;overflow:hidden;position:relative;')}>
-                  <div style={{ height: '100%', borderRadius: '3px', background: sc.color, width: sc.w + '%' }} />
-                  <span style={css('position:absolute;right:6px;top:0;line-height:14px;font-size:10.5px;font-weight:600;color:#fff;font-variant-numeric:tabular-nums;')}>{sc.co2}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div style={css('padding:15px 16px 24px;')}>
-          <div style={css('font-size:15px;font-weight:700;color:#003366;')}>Impatto smart working</div>
-          <div style={css('font-size:11.5px;color:#929da9;margin-bottom:9px;')}>CO₂ t/g al variare dell'adozione</div>
-          <svg width="100%" viewBox="0 0 300 150" style={{ display: 'block' }}>
-            <line x1="34" y1="120" x2="290" y2="120" stroke="#d9dadb" strokeWidth="1" />
-            <line x1="34" y1="14" x2="34" y2="120" stroke="#d9dadb" strokeWidth="1" />
-            {v.smartGrid.map((g, i) => <text key={i} x="30" y={g.y} textAnchor="end" fontFamily="Titillium Web" fontSize="9" fill="#a3adb7">{g.label}</text>)}
-            <polygon points={v.smartArea} fill="#089994" opacity="0.08" />
-            <polyline points={v.smartPts} fill="none" stroke="#089994" strokeWidth="2.5" strokeLinejoin="round" />
-            {v.smartDots.map((d, i) => (
-              <g key={i}>
-                <circle cx={d.cx} cy={d.cy} r="3" fill="#fff" stroke="#089994" strokeWidth="2" />
-                <text x={d.cx} y="135" textAnchor="middle" fontFamily="Titillium Web" fontSize="9" fill="#768594">{d.lab}</text>
-              </g>
-            ))}
-          </svg>
+          <SidePanel
+            sidePanelRef={(el) => (this.rightCol = el)}
+            drawerRef={(el) => (this.drawer = el)}
+            colorPreviewRef={(el) => (this.colorPreview = el)}
+            s={s} v={v}
+            SWATCHES={this.SWATCHES}
+            bothGradStr={() => this.bothGradStr()}
+            onClosePanel={() => this.setPanel(false)}
+            onSetTab={(t) => this.setTab(t)}
+            onMetric={(m) => this.setMetric(m)}
+            onToggle={(k) => this.toggle(k)}
+            onSetHeatColor={(c) => this.setHeatColor(c)}
+            onSetAuto={() => this.setAuto()}
+            onBasemap={(v) => this.setBasemapVal(v)}
+            onFilter={(v) => this.setFilterVal(v)}
+            onToggleTime={() => this.toggleTime()}
+            onHourStart={(v) => this.setHourStart(v)}
+            onHourEnd={(v) => this.setHourEnd(v)}
+            onSetCatchMode={(m) => this.setCatchMode(m)}
+            onSetAreaLevel={(v) => this.setAreaLevel(v)}
+            onSetAreaMuni={(v) => this.setAreaMuni(v)}
+            onSetAreaZone={(v) => this.setAreaZone(v)}
+            onSetFraz={(v) => this.setFraz(v)}
+            onSetRadius={(v) => this.setRadius(v)}
+            onSetDir={(d) => this.setDir(d)}
+            onToggleCo2={() => this.toggleCo2()}
+            onClearPoint={() => this.clearPoint()}
+            onPreset={(p) => this.setPreset(p)}
+            onNevralgico={(p) => this.setNevralgicPoint(p)}
+          />
         </div>
       </div>
     );
