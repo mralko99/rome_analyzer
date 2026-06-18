@@ -26,7 +26,7 @@ export default class App extends React.Component {
     this.state = {
       loading: true, loadMsg: 'Caricamento dati di mobilità…', errorMsg: '',
       mode: 'city', metric: 'out',
-      heatmap: true, grid: true, bounds: true,
+      heatmap: true, grid: true, bounds: true, showNevralgic: true,
       basemap: 'positron', filterMuni: 0,
       timeEnabled: false, hourStart: 7, hourEnd: 9,
       heatColors: { out: null, inc: null, co2: null },
@@ -56,6 +56,17 @@ export default class App extends React.Component {
       { name: 'Saxa Rubra', lat: 41.974638, lng: 12.49328 },
       { name: 'Centro (Colosseo)', lat: 41.8902, lng: 12.4922 },
       { name: 'Tiburtina', lat: 41.9105, lng: 12.5302 },
+    ];
+    this.PUNTI_NEVRALGICI = [
+      { id: 'hub_termini', nome: 'Roma Termini', tipologia: 'Grande Attrattore Centrale', latitudine: 41.9014, longitudine: 12.5005, raggio_cattura_km: 0.8, note: 'Cuore intermodale. Picco assoluto di flussi in entrata con distanze altamente eterogenee.' },
+      { id: 'hub_eur', nome: 'EUR – Palasport', tipologia: 'Polo Direzionale', latitudine: 41.8315, longitudine: 12.4654, raggio_cattura_km: 1.0, note: 'Centro lavorativo quadrante sud. Alta dipendenza da gomma tramite Cristoforo Colombo e Pontina.' },
+      { id: 'hub_anagnina', nome: 'Nodo Anagnina', tipologia: 'Filtro Sud-Est (Park & Ride)', latitudine: 41.8428, longitudine: 12.5860, raggio_cattura_km: 0.6, note: 'Capolinea Metro A e scambio Cotral. Alta conversione da flussi in auto a trasporto pubblico.' },
+      { id: 'hub_ponte_mammolo', nome: 'Ponte Mammolo / Rebibbia', tipologia: 'Filtro Est', latitudine: 41.9216, longitudine: 12.5653, raggio_cattura_km: 0.5, note: 'Snodo vitale per i flussi in entrata dall\'hinterland est lungo l\'asse Tiburtina.' },
+      { id: 'hub_saxa_rubra', nome: 'Saxa Rubra', tipologia: 'Polo Direzionale e di Scambio Nord', latitudine: 41.974638, longitudine: 12.493280, raggio_cattura_km: 0.6, note: 'Polo lavorativo e interscambio periferico. Distanze medie percorse molto elevate.' },
+      { id: 'hub_ostia_centro', nome: 'Ostia Lido (Centro)', tipologia: 'Macro-Polo Periferico Costiero', latitudine: 41.7303, longitudine: 12.2825, raggio_cattura_km: 1.2, note: 'Flussi di uscita massicci verso l\'EUR e il centro tramite Via del Mare e ferrovia Roma-Lido.' },
+      { id: 'hub_tor_vergata', nome: 'Policlinico / Campus Tor Vergata', tipologia: 'Attrattore Periferico Estremo', latitudine: 41.8587, longitudine: 12.6300, raggio_cattura_km: 1.5, note: 'Cittadella molto dispersa. Raggio di cattura più ampio necessario per coprire facoltà e ospedale.' },
+      { id: 'hub_ponte_di_nona', nome: 'Ponte di Nona / Roma Est', tipologia: 'Periferia Residenziale Est', latitudine: 41.9168, longitudine: 12.6648, raggio_cattura_km: 1.0, note: 'Emblema dello sprawl urbano. Altissimo tasso di motorizzazione privata e densità emissiva.' },
+      { id: 'hub_casalotti', nome: 'Casalotti / Boccea', tipologia: 'Periferia Residenziale Nord-Ovest', latitudine: 41.9366, longitudine: 12.3855, raggio_cattura_km: 0.8, note: 'Quartiere isolato dalle direttrici su ferro. Forti flussi in uscita dipendenti dalla viabilità ordinaria.' },
     ];
   }
 
@@ -103,7 +114,7 @@ export default class App extends React.Component {
     this.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     this.overlay = new MapboxOverlay({ interleaved: true, layers: [], getTooltip: (i) => this.tooltip(i) });
     this.map.addControl(this.overlay);
-    this.map.on('click', (e) => this.setPoint(e.lngLat.lng, e.lngLat.lat));
+    this.map.on('click', (e) => { if (this._nevClick) { this._nevClick = false; return; } this.setPoint(e.lngLat.lng, e.lngLat.lat); });
     this.map.on('load', () => { this.updateLayers(); this.updateLegend(); });
     this.applyPanel();
   }
@@ -207,10 +218,27 @@ export default class App extends React.Component {
       layers.push(new ScatterplotLayer({ id: 'hub', data: [{ p: hub }], getPosition: (d) => d.p, getFillColor: [255, 200, 0], getRadius: 8, radiusUnits: 'pixels', stroked: true, getLineColor: [0, 51, 102], lineWidthMinPixels: 2.5 }));
     }
     if (s.bounds) layers.push(new GeoJsonLayer({ id: 'bounds', data: this.boundaryGeo, stroked: true, filled: false, getLineColor: (f) => (s.filterMuni && f.properties.n === s.filterMuni) ? [204, 122, 0, 255] : (dark ? [255, 255, 255, 150] : [0, 51, 102, 150]), getLineWidth: (f) => (s.filterMuni && f.properties.n === s.filterMuni) ? 3 : 1.4, lineWidthUnits: 'pixels', lineWidthMinPixels: 1.2, updateTriggers: { getLineColor: [s.filterMuni, s.basemap], getLineWidth: [s.filterMuni] } }));
+    if (s.showNevralgic) layers.push(new ScatterplotLayer({ id: 'nevralgic', data: this.PUNTI_NEVRALGICI, getPosition: (d) => [d.longitudine, d.latitudine], getFillColor: (d) => this.nevralgicoColor(d.tipologia), getLineColor: [255, 255, 255], getRadius: 9, radiusUnits: 'pixels', stroked: true, lineWidthMinPixels: 2, pickable: true, autoHighlight: true, highlightColor: [255, 240, 150, 120], onClick: (info) => { if (info.object) this.setNevralgicPoint(info.object); } }));
     this.overlay.setProps({ layers });
   }
 
   circlePoly(lng, lat, km) { const pts = [], R = 6371, d = km / R, la1 = lat * Math.PI / 180, lo1 = lng * Math.PI / 180; for (let i = 0; i <= 64; i++) { const b = i / 64 * 2 * Math.PI; const la2 = Math.asin(Math.sin(la1) * Math.cos(d) + Math.cos(la1) * Math.sin(d) * Math.cos(b)); const lo2 = lo1 + Math.atan2(Math.sin(b) * Math.sin(d) * Math.cos(la1), Math.cos(d) - Math.sin(la1) * Math.sin(la2)); pts.push([lo2 * 180 / Math.PI, la2 * 180 / Math.PI]); } return pts; }
+
+  nevralgicoColor(tipologia) {
+    if (/Attrattore Centrale/i.test(tipologia)) return [204, 80, 55];
+    if (/Polo Direzionale/i.test(tipologia)) return [7, 127, 123];
+    if (/Filtro/i.test(tipologia)) return [0, 128, 85];
+    if (/Periferia/i.test(tipologia)) return [204, 51, 77];
+    if (/Macro-Polo/i.test(tipologia)) return [0, 77, 153];
+    return [100, 100, 140];
+  }
+
+  setNevralgicPoint(p) {
+    this._nevClick = true;
+    this._ptName = p.nome;
+    this.setState({ hasPoint: true, ptLng: p.longitudine, ptLat: p.latitudine, mode: 'catchment', catchMode: 'radius', areaLevel: '', tab: 'catchment', radiusKm: p.raggio_cattura_km }, () => { this.computeCatchment(); this.refresh(); });
+    if (this.map) this.map.flyTo({ center: [p.longitudine, p.latitudine], zoom: 12, duration: 800 });
+  }
 
   gradStr(stops) { return `linear-gradient(90deg, ${stops.map((c, i) => `rgb(${c[0]},${c[1]},${c[2]}) ${(i / (stops.length - 1) * 100).toFixed(0)}%`).join(',')})`; }
   bothGradStr() { const a = this.ramp(.7, this.stopsForMetric('inc')), b = this.ramp(.7, this.stopsForMetric('out')); return `linear-gradient(90deg, rgb(${a.join(',')}), #b8b08a, rgb(${b.join(',')}))`; }
@@ -221,6 +249,7 @@ export default class App extends React.Component {
     if (!object || !layer) return null; const fmt = (n) => Math.round(n).toLocaleString('it-IT');
     if (layer.id === 'hex') { const id = object.id, m = this.data.metrics, c = this.data.cells, f = this.timeFactor(); const mn = c.muni[id] ? (this.muniName[c.muni[id]] || '') : 'Area periurbana'; return { html: `<div style="font-family:'Titillium Web',sans-serif;min-width:150px"><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;opacity:.6;margin-bottom:2px">${mn}</div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Uscenti</span><b>${fmt((m.out[id] || 0) * f)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Entranti</span><b>${fmt((m.inc[id] || 0) * f)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>CO₂ t/g</span><b>${((m.co2[id] || 0) * f).toFixed(2)}</b></div></div>`, style: this.ttStyle() }; }
     if (layer.id === 'conn') { const c = this.data.cells, mn = c.muni[object.id] ? (this.muniName[c.muni[object.id]] || '') : 'Area periurbana'; const kg = (g) => (g / 1000).toLocaleString('it-IT', { maximumFractionDigits: 0 }); return { html: `<div style="font-family:'Titillium Web',sans-serif;min-width:160px"><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;opacity:.6;margin-bottom:2px">${mn}</div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Verso il bacino</span><b>${fmt(this.cat.inMap[object.id] || 0)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Dal bacino</span><b>${fmt(this.cat.outMap[object.id] || 0)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px;opacity:.8"><span>CO₂ kg/g</span><b>${kg((this.cat.co2In[object.id] || 0) + (this.cat.co2Out[object.id] || 0))}</b></div></div>`, style: this.ttStyle() }; }
+    if (layer.id === 'nevralgic') { const p = object; return { html: `<div style="font-family:'Titillium Web',sans-serif;max-width:220px"><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;opacity:.6;margin-bottom:3px">${p.tipologia}</div><div style="font-size:13px;font-weight:700;margin-bottom:5px">${p.nome}</div><div style="font-size:11px;opacity:.85;line-height:1.4">${p.note}</div><div style="font-size:10px;opacity:.5;margin-top:4px">Raggio bacino: ${p.raggio_cattura_km} km · clicca per analizzare</div></div>`, style: this.ttStyle() }; }
     return null;
   }
   ttStyle() { return { background: '#003366', color: '#fff', padding: '8px 11px', borderRadius: '4px', boxShadow: '0 8px 16px rgba(0,0,0,.2)', fontSize: '12px' }; }
@@ -464,6 +493,7 @@ export default class App extends React.Component {
             <button onClick={() => this.toggle('heatmap')} style={this.rowStyle()}><span>Heatmap dati</span><span style={this.pill(s.heatmap)}>{s.heatmap ? 'ON' : 'OFF'}</span></button>
             <button onClick={() => this.toggle('grid')} style={this.rowStyle()}><span>Griglia H3</span><span style={this.pill(s.grid)}>{s.grid ? 'ON' : 'OFF'}</span></button>
             <button onClick={() => this.toggle('bounds')} style={this.rowStyle()}><span>Confini municipi</span><span style={this.pill(s.bounds)}>{s.bounds ? 'ON' : 'OFF'}</span></button>
+            <button onClick={() => this.toggle('showNevralgic')} style={this.rowStyle()}><span>Punti nevralgici</span><span style={this.pill(s.showNevralgic)}>{s.showNevralgic ? 'ON' : 'OFF'}</span></button>
           </div>
         </div>
         <div>
@@ -525,6 +555,24 @@ export default class App extends React.Component {
                 {this.PRESETS.map((p) => (
                   <button key={p.name} onClick={() => this.setPreset(p)} style={css('height:30px;padding:0 12px;border:1px solid #c5c7c9;background:#fff;border-radius:40px;font-family:inherit;font-size:12.5px;font-weight:600;color:#003366;cursor:pointer;')}>{p.name}</button>
                 ))}
+              </div>
+            </div>
+            <div>
+              <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>Punti nevralgici</div>
+              <div style={css('display:flex;flex-direction:column;gap:5px;')}>
+                {this.PUNTI_NEVRALGICI.map((p) => {
+                  const col = this.nevralgicoColor(p.tipologia);
+                  const active = this.state.hasPoint && Math.abs(this.state.ptLat - p.latitudine) < 0.0001 && Math.abs(this.state.ptLng - p.longitudine) < 0.0001;
+                  return (
+                    <button key={p.id} onClick={() => this.setNevralgicPoint(p)} style={{ display: 'flex', alignItems: 'center', gap: '9px', height: '38px', padding: '0 11px', border: active ? `2px solid rgb(${col.join(',')})` : '1px solid #ebeced', background: active ? `rgba(${col.join(',')},0.07)` : '#fff', borderRadius: '6px', fontFamily: 'inherit', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
+                      <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: `rgb(${col.join(',')})`, flexShrink: 0, border: '2px solid white', boxShadow: `0 0 0 1.5px rgb(${col.join(',')})` }} />
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ fontSize: '13px', fontWeight: '700', color: '#17324d', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome}</span>
+                        <span style={{ fontSize: '10px', color: '#929da9', fontWeight: '600' }}>{p.tipologia} · {p.raggio_cattura_km} km</span>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
             <div>
