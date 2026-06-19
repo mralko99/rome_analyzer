@@ -99,7 +99,7 @@ export default class App extends React.Component {
     this.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     this.overlay = new MapboxOverlay({ interleaved: true, layers: [], getTooltip: (i) => this.tooltip(i) });
     this.map.addControl(this.overlay);
-    this.map.on('click', (e) => { if (this._nevClick) { this._nevClick = false; return; } this.setPoint(e.lngLat.lng, e.lngLat.lat); });
+    this.map.on('click', (e) => { if (this._nevClick) { this._nevClick = false; return; } const _s = this.state; if (_s.catchMode === 'area') { this.setPointInArea(e.lngLat.lng, e.lngLat.lat); } else { this.setPoint(e.lngLat.lng, e.lngLat.lat); } });
     this.map.on('load', () => { if (this.allMuniBbox) { const _b = this.allMuniBbox; this.map.fitBounds([[_b[0], _b[1]], [_b[2], _b[3]]], { padding: 45, animate: false }); } this.updateLayers(); this.updateLegend(); });
     this.map.on('zoomend', () => this.refresh());
     this.applyPanel();
@@ -242,16 +242,31 @@ export default class App extends React.Component {
   updateLegend() { if (!this.legendBar) return; const s = this.state, f = s.catchFlags; if (s.mode === 'catchment' && f && f.in && f.out && !s.catchCo2) this.legendBar.style.background = this.bothGradStr(); else this.legendBar.style.background = this.gradStr(s.mode === 'catchment' ? (this.catchStops() || this.stopsForMetric('co2')) : this.cityStops()); }
   updateColorPreview() { if (!this.colorPreview) return; this.colorPreview.style.background = this.gradStr(this.cityStops()); }
 
+  zoneNameAtZoom(id) {
+    const c = this.data.cells, lng = c.lng[id], lat = c.lat[id], zoom = this.map ? this.map.getZoom() : 9;
+    if (zoom >= 12.5 && this.data.frazioni && this.data.frazioni.length) {
+      let nearest = null, bd = 1.0;
+      this.data.frazioni.forEach((f) => { const d = this.hav(lat, lng, f.lat, f.lng); if (d < bd) { bd = d; nearest = f.name; } });
+      if (nearest) return nearest;
+    }
+    if (zoom >= 11 && this.zoneById) {
+      const inBox = (x, y, b) => x >= b[0] && x <= b[2] && y >= b[1] && y <= b[3];
+      for (const z of (this.data.zone || [])) { const zd = this.zoneById[z.id]; if (!zd || !zd.bbox || !zd.rings) continue; if (!inBox(lng, lat, zd.bbox)) continue; if (this.pipR(lng, lat, zd.rings)) return zd.name; }
+    }
+    if (c.muni[id]) return this.muniName[c.muni[id]] || '';
+    return 'Area periurbana';
+  }
+
   tooltip({ object, layer }) {
     if (!object || !layer) return null; const fmt = (n) => Math.round(n).toLocaleString('it-IT');
-    if (layer.id === 'hex') { const id = object.id, m = this.data.metrics, c = this.data.cells; const mn = c.muni[id] ? (this.muniName[c.muni[id]] || '') : 'Area periurbana'; return { html: `<div style="font-family:'Titillium Web',sans-serif;min-width:150px"><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;opacity:.6;margin-bottom:2px">${mn}</div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Uscenti</span><b>${fmt(m.out[id] || 0)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Entranti</span><b>${fmt(m.inc[id] || 0)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>CO₂ t/g</span><b>${(m.co2[id] || 0).toFixed(2)}</b></div></div>`, style: this.ttStyle() }; }
+    if (layer.id === 'hex') { const id = object.id, m = this.data.metrics, c = this.data.cells; const mn = this.zoneNameAtZoom(id); return { html: `<div style="font-family:'Titillium Web',sans-serif;min-width:150px"><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;opacity:.6;margin-bottom:2px">${mn}</div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Uscenti</span><b>${fmt(m.out[id] || 0)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Entranti</span><b>${fmt(m.inc[id] || 0)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Interni</span><b>${fmt(m.internal[id] || 0)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>CO₂ t/g</span><b>${(m.co2[id] || 0).toFixed(2)}</b></div></div>`, style: this.ttStyle() }; }
     if (layer.id === 'conn') { const c = this.data.cells, mn = c.muni[object.id] ? (this.muniName[c.muni[object.id]] || '') : 'Area periurbana'; const kg = (g) => (g / 1000).toLocaleString('it-IT', { maximumFractionDigits: 0 }); return { html: `<div style="font-family:'Titillium Web',sans-serif;min-width:160px"><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;opacity:.6;margin-bottom:2px">${mn}</div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Verso il bacino</span><b>${fmt(this.cat.inMap[object.id] || 0)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Dal bacino</span><b>${fmt(this.cat.outMap[object.id] || 0)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px;opacity:.8"><span>CO₂ kg/g</span><b>${kg((this.cat.co2In[object.id] || 0) + (this.cat.co2Out[object.id] || 0))}</b></div></div>`, style: this.ttStyle() }; }
     if (layer.id === 'nevralgic') { const p = object; return { html: `<div style="font-family:'Titillium Web',sans-serif;max-width:220px"><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;opacity:.6;margin-bottom:3px">${p.tipologia}</div><div style="font-size:13px;font-weight:700;margin-bottom:5px">${p.nome}</div><div style="font-size:11px;opacity:.85;line-height:1.4">${p.note}</div><div style="font-size:10px;opacity:.5;margin-top:4px">Raggio bacino: ${p.raggio_cattura_km} km · clicca per analizzare</div></div>`, style: this.ttStyle() }; }
     return null;
   }
   ttStyle() { return { background: '#003366', color: '#fff', padding: '8px 11px', borderRadius: '4px', boxShadow: '0 8px 16px rgba(0,0,0,.2)', fontSize: '12px' }; }
 
-  refresh() { this.updateLayers(); this.updateLegend(); this.updateColorPreview(); }
+  refresh() { this.updateLayers(); this.updateLegend(); this.updateColorPreview(); if (this.map) { const _s = this.state; this.map.getCanvas().style.cursor = (_s.tab === 'catchment' && _s.catchMode === 'radius') ? 'crosshair' : ''; } }
   setMetric(m) { this.setState({ metric: m }, () => this.refresh()); }
   toggle(k) { this.setState((s) => ({ [k]: !s[k] }), () => this.refresh()); }
   setHeatColor(v) { this.setState((s) => ({ heatColors: { ...s.heatColors, [s.metric]: v } }), () => this.refresh()); }
@@ -264,7 +279,22 @@ export default class App extends React.Component {
   setFilterVal(v) { v = +v; this.setState({ filterMuni: v }, () => this.refresh()); if (this.map) { if (v && this.muniBbox[v]) { const b = this.muniBbox[v]; this.map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 60, duration: 700 }); } else this.map.flyTo({ center: [12.52, 41.9], zoom: 9.3, duration: 700 }); } }
 
   nearestName(lat, lng) { const c = this.data.cells; let mn = 0, bd = 1e9; for (let id = 1; id <= c.maxId; id++) { if (!c.h3[id]) continue; const d = this.hav(lat, lng, c.lat[id], c.lng[id]); if (d < bd) { bd = d; mn = c.muni[id]; } } return mn ? (this.muniName[mn] || 'Punto selezionato') : 'Area periurbana'; }
-  setPoint(lng, lat, name) { this._ptName = name || this.nearestName(lat, lng); this.setState({ hasPoint: true, ptLng: lng, ptLat: lat, mode: 'catchment', catchMode: 'radius', areaLevel: '', tab: 'catchment' }, () => { this.computeCatchment(); this.refresh(); }); }
+  setPoint(lng, lat, name) { this._ptName = name || this.nearestName(lat, lng); this.setState({ hasPoint: true, ptLng: lng, ptLat: lat, mode: 'catchment', catchMode: 'radius', areaLevel: '' }, () => { this.computeCatchment(); this.refresh(); }); }
+  setPointInArea(lng, lat) {
+    const s = this.state;
+    if (s.areaLevel === 'municipio') {
+      const c = this.data.cells; let mn = 0, bd = 1e9;
+      for (let id = 1; id <= c.maxId; id++) { if (!c.h3[id] || !c.muni[id]) continue; const d = this.hav(lat, lng, c.lat[id], c.lng[id]); if (d < bd) { bd = d; mn = c.muni[id]; } }
+      if (mn) this.setAreaMuni(mn);
+    } else if (s.areaLevel === 'zona') {
+      const inBox = (x, y, b) => x >= b[0] && x <= b[2] && y >= b[1] && y <= b[3];
+      for (const z of (this.data.zone || [])) { const zd = this.zoneById[z.id]; if (!zd || !zd.bbox || !zd.rings) continue; if (!inBox(lng, lat, zd.bbox)) continue; if (this.pipR(lng, lat, zd.rings)) { this.setAreaZone(z.id); return; } }
+    } else if (s.areaLevel === 'frazione') {
+      let best = -1, bd = Infinity;
+      this.data.frazioni.forEach((f, i) => { const d = this.hav(lat, lng, f.lat, f.lng); if (d < bd) { bd = d; best = i; } });
+      if (best >= 0) this.setFraz(best);
+    }
+  }
   setRadius(v) { this.setState({ radiusKm: +v }); clearTimeout(this._rt); this._rt = setTimeout(() => { if (this.cat && this.cat.circle) { this.computeCatchment(); this.refresh(); } }, 130); }
   setCatchMode(m) { this.cat = null; this._ptName = null; this.setState({ catchMode: m, mode: 'city', hasPoint: false, areaLevel: '', areaMuni: 0, areaZone: -1, frazId: -1 }, () => this.refresh()); }
   setAreaLevel(v) { this.cat = null; this.setState({ areaLevel: v, mode: 'city', areaMuni: 0, areaZone: -1, frazId: -1 }, () => { if (v === 'capitale' || v === 'comune') { this.setState({ mode: 'catchment' }, () => { this.computeCatchment(); this.refresh(); }); if (this.map) this.map.flyTo({ center: this.gridCenter, zoom: v === 'capitale' ? 9.2 : 10, duration: 700 }); } else this.refresh(); }); }
