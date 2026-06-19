@@ -18,11 +18,82 @@ function sampleGradient(stops, t) {
   return stops[stops.length - 1].hex;
 }
 
-export default function SettingsTab({ s, v, onMetric, onToggle, onSetHeatColor, onSetAuto, onBasemap, onFilter }) {
+// ── Shared sub-components for the layer style rows ──────────────────────────
+
+function LayerRow({ label, accentColor, open, onToggleOpen, pills, children }) {
+  return (
+    <div style={css('border:1px solid #ebeced;border-radius:4px;background:#fff;overflow:hidden;')}>
+      <div style={css('display:flex;align-items:center;justify-content:space-between;padding:0 11px;height:36px;')}>
+        <span style={css('font-size:13px;font-weight:600;color:#17324d;')}>{label}</span>
+        <div style={css('display:flex;gap:5px;align-items:center;')}>
+          {pills.map((p) => (
+            <button key={p.label} onClick={p.onClick} style={pill(p.active)}>{p.label}</button>
+          ))}
+          <button
+            onClick={onToggleOpen}
+            title="Personalizza stile"
+            style={css(`width:26px;height:26px;border-radius:4px;border:1px solid ${open ? accentColor : '#c5c7c9'};background:${open ? accentColor + '22' : '#fff'};color:${open ? accentColor : '#768594'};cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;padding:0;`)}
+          >⚙</button>
+        </div>
+      </div>
+      {open && children}
+    </div>
+  );
+}
+
+function StyleSubPanel({ accentColor, borderColor, borderWidth, labelColor, labelSize, onBorderColor, onBorderWidth, onLabelColor, onLabelSize }) {
+  const hasBorder = borderColor !== undefined;
+  return (
+    <div style={{ ...css('padding:10px 11px 12px;border-top:1px solid #f0f0f0;display:flex;flex-direction:column;gap:10px;'), background: accentColor + '1a' }}>
+      {hasBorder && (
+        <div style={css('display:flex;flex-direction:column;gap:5px;')}>
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: accentColor }}>Bordi</span>
+          <div style={css('display:flex;align-items:center;gap:8px;')}>
+            <label style={css('display:flex;align-items:center;gap:5px;font-size:12px;color:#5c6f82;font-weight:600;cursor:pointer;')}>
+              <input type="color" value={borderColor} onChange={(e) => onBorderColor(e.target.value)}
+                style={css('width:26px;height:26px;padding:0;border:1px solid #c5c7c9;border-radius:4px;cursor:pointer;')} />
+              Colore
+            </label>
+            <label style={css('display:flex;align-items:center;gap:5px;font-size:12px;color:#5c6f82;font-weight:600;flex:1;')}>
+              Spessore
+              <input type="range" min="0.5" max="4" step="0.5" value={borderWidth}
+                onChange={(e) => onBorderWidth(+e.target.value)}
+                style={{ flex: 1, cursor: 'pointer', accentColor }} />
+              <span style={css('font-size:11px;color:#929da9;min-width:22px;text-align:right;')}>{borderWidth}px</span>
+            </label>
+          </div>
+        </div>
+      )}
+      <div style={css('display:flex;flex-direction:column;gap:5px;')}>
+        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: accentColor }}>Etichette</span>
+        <div style={css('display:flex;align-items:center;gap:8px;')}>
+          <label style={css('display:flex;align-items:center;gap:5px;font-size:12px;color:#5c6f82;font-weight:600;cursor:pointer;')}>
+            <input type="color" value={labelColor} onChange={(e) => onLabelColor(e.target.value)}
+              style={css('width:26px;height:26px;padding:0;border:1px solid #c5c7c9;border-radius:4px;cursor:pointer;')} />
+            Colore
+          </label>
+          <label style={css('display:flex;align-items:center;gap:5px;font-size:12px;color:#5c6f82;font-weight:600;flex:1;')}>
+            Dim.
+            <input type="range" min="8" max="18" step="1" value={labelSize}
+              onChange={(e) => onLabelSize(+e.target.value)}
+              style={{ flex: 1, cursor: 'pointer', accentColor }} />
+            <span style={css('font-size:11px;color:#929da9;min-width:22px;text-align:right;')}>{labelSize}px</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+
+export default function SettingsTab({ s, v, onMetric, onToggle, onSetHeatColor, onSetAuto, onBasemap, onFilter, onSetLayerStyle }) {
   const [draftStops, setDraftStops] = useState(v.heatStops);
   const [selIdx, setSelIdx] = useState(0);
   const [dragIdx, setDragIdx] = useState(null);
-  const barRef = useRef(null);
+  const [comuniOpen, setComuniOpen] = useState(false);  const [muniOpen, setMuniOpen] = useState(false);
+  const [quartieriOpen, setQuartieriOpen] = useState(false);
+  const [frazOpen, setFrazOpen] = useState(false);  const barRef = useRef(null);
   const draftRef = useRef(draftStops);
   useEffect(() => { draftRef.current = draftStops; }, [draftStops]);
 
@@ -140,28 +211,73 @@ export default function SettingsTab({ s, v, onMetric, onToggle, onSetHeatColor, 
         </div>
       </div>
       <div>
-        <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:8px;')}>Zone cartografiche</div>
+        <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:8px;')}>Confini e Etichette</div>
         <div style={css('display:flex;flex-direction:column;gap:6px;')}>
-          <div style={css('display:flex;align-items:center;justify-content:space-between;padding:0 11px;height:36px;border:1px solid #ebeced;border-radius:4px;background:#fff;')}>
-            <span style={css('font-size:13px;font-weight:600;color:#17324d;')}>Municipio</span>
-            <div style={css('display:flex;gap:5px;')}>
-              <button onClick={() => onToggle('showMuniBounds')} style={pill(s.showMuniBounds)}>Bordi</button>
-              <button onClick={() => onToggle('showMuniLabels')} style={pill(s.showMuniLabels)}>Etichette</button>
-            </div>
-          </div>
-          <div style={css('display:flex;align-items:center;justify-content:space-between;padding:0 11px;height:36px;border:1px solid #ebeced;border-radius:4px;background:#fff;')}>
-            <span style={css('font-size:13px;font-weight:600;color:#17324d;')}>Quartieri</span>
-            <div style={css('display:flex;gap:5px;')}>
-              <button onClick={() => onToggle('showQuartieriBounds')} style={pill(s.showQuartieriBounds)}>Bordi</button>
-              <button onClick={() => onToggle('showQuartieriLabels')} style={pill(s.showQuartieriLabels)}>Etichette</button>
-            </div>
-          </div>
-          <div style={css('display:flex;align-items:center;justify-content:space-between;padding:0 11px;height:36px;border:1px solid #ebeced;border-radius:4px;background:#fff;')}>
-            <span style={css('font-size:13px;font-weight:600;color:#17324d;')}>Frazioni</span>
-            <div style={css('display:flex;gap:5px;')}>
-              <button onClick={() => onToggle('showFrazioni')} style={pill(s.showFrazioni)}>Etichette</button>
-            </div>
-          </div>
+
+          {/* ── Comuni (Provincia) ── */}
+          <LayerRow label="Comuni (Prov. Roma)" accentColor="#7c3aed" open={comuniOpen} onToggleOpen={() => setComuniOpen((o) => !o)}
+            pills={[
+              { label: 'Bordi', active: s.showComuniBounds, onClick: () => onToggle('showComuniBounds') },
+              { label: 'Etichette', active: s.showComuniLabels, onClick: () => onToggle('showComuniLabels') },
+            ]}
+          >
+            <StyleSubPanel accentColor="#7c3aed"
+              borderColor={s.comuniBorderColor} borderWidth={s.comuniBorderWidth}
+              labelColor={s.comuniLabelColor} labelSize={s.comuniLabelSize}
+              onBorderColor={(v) => onSetLayerStyle('comuniBorderColor', v)}
+              onBorderWidth={(v) => onSetLayerStyle('comuniBorderWidth', v)}
+              onLabelColor={(v) => onSetLayerStyle('comuniLabelColor', v)}
+              onLabelSize={(v) => onSetLayerStyle('comuniLabelSize', v)}
+            />
+          </LayerRow>
+
+          {/* ── Municipi ── */}
+          <LayerRow label="Municipi (Comune di Roma)" accentColor="#003366" open={muniOpen} onToggleOpen={() => setMuniOpen((o) => !o)}
+            pills={[
+              { label: 'Bordi', active: s.showMuniBounds, onClick: () => onToggle('showMuniBounds') },
+              { label: 'Etichette', active: s.showMuniLabels, onClick: () => onToggle('showMuniLabels') },
+            ]}
+          >
+            <StyleSubPanel accentColor="#003366"
+              borderColor={s.muniBorderColor} borderWidth={s.muniBorderWidth}
+              labelColor={s.muniLabelColor} labelSize={s.muniLabelSize}
+              onBorderColor={(v) => onSetLayerStyle('muniBorderColor', v)}
+              onBorderWidth={(v) => onSetLayerStyle('muniBorderWidth', v)}
+              onLabelColor={(v) => onSetLayerStyle('muniLabelColor', v)}
+              onLabelSize={(v) => onSetLayerStyle('muniLabelSize', v)}
+            />
+          </LayerRow>
+
+          {/* ── Quartieri ── */}
+          <LayerRow label="Quartieri (Comune di Roma)" accentColor="#3c64a0" open={quartieriOpen} onToggleOpen={() => setQuartieriOpen((o) => !o)}
+            pills={[
+              { label: 'Bordi', active: s.showQuartieriBounds, onClick: () => onToggle('showQuartieriBounds') },
+              { label: 'Etichette', active: s.showQuartieriLabels, onClick: () => onToggle('showQuartieriLabels') },
+            ]}
+          >
+            <StyleSubPanel accentColor="#3c64a0"
+              borderColor={s.quartieriBorderColor} borderWidth={s.quartieriBorderWidth}
+              labelColor={s.quartieriLabelColor} labelSize={s.quartieriLabelSize}
+              onBorderColor={(v) => onSetLayerStyle('quartieriBorderColor', v)}
+              onBorderWidth={(v) => onSetLayerStyle('quartieriBorderWidth', v)}
+              onLabelColor={(v) => onSetLayerStyle('quartieriLabelColor', v)}
+              onLabelSize={(v) => onSetLayerStyle('quartieriLabelSize', v)}
+            />
+          </LayerRow>
+
+          {/* ── Frazioni (solo etichette) ── */}
+          <LayerRow label="Frazioni (Comune di Roma)" accentColor="#004640" open={frazOpen} onToggleOpen={() => setFrazOpen((o) => !o)}
+            pills={[
+              { label: 'Etichette', active: s.showFrazioni, onClick: () => onToggle('showFrazioni') },
+            ]}
+          >
+            <StyleSubPanel accentColor="#004640"
+              labelColor={s.frazLabelColor} labelSize={s.frazLabelSize}
+              onLabelColor={(v) => onSetLayerStyle('frazLabelColor', v)}
+              onLabelSize={(v) => onSetLayerStyle('frazLabelSize', v)}
+            />
+          </LayerRow>
+
         </div>
       </div>
       <div>
@@ -170,13 +286,6 @@ export default function SettingsTab({ s, v, onMetric, onToggle, onSetHeatColor, 
           <option value="positron">Chiara (Positron)</option>
           <option value="voyager">Stradale (Voyager)</option>
           <option value="dark">Scura (Dark Matter)</option>
-        </select>
-      </div>
-      <div>
-        <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>Filtra municipio</div>
-        <select onChange={(e) => onFilter(e.target.value)} value={String(s.filterMuni)} style={css('width:100%;height:36px;border:1px solid #c5c7c9;border-radius:4px;padding:0 9px;font-family:inherit;font-size:14px;color:#17324d;background:#fff;cursor:pointer;')}>
-          <option value="0">Tutta l'area metropolitana</option>
-          {v.municipiOptions.map((o) => <option key={o.n} value={o.n}>{o.label}</option>)}
         </select>
       </div>
     </div>

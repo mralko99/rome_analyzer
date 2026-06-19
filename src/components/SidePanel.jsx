@@ -14,6 +14,7 @@ export default function SidePanel({
   onToggleTime, onHourStart, onHourEnd,
   onSetCatchMode, onSetAreaLevel, onSetAreaMuni, onSetAreaZone, onSetFraz,
   onSetRadius, onToggleDir, onToggleCo2, onClearPoint, onNevralgico,
+  onSetLayerStyle,
 }) {
   return (
     <div ref={sidePanelRef} style={css('flex:none;width:404px;overflow:hidden;background:#fafafa;')}>
@@ -40,6 +41,7 @@ export default function SidePanel({
               onSetHeatColor={onSetHeatColor} onSetAuto={onSetAuto}
               onBasemap={onBasemap} onFilter={onFilter}
               onToggleTime={onToggleTime} onHourStart={onHourStart} onHourEnd={onHourEnd}
+              onSetLayerStyle={onSetLayerStyle}
             />
           )}
           {s.tab === 'catchment' && (

@@ -1,10 +1,10 @@
 import React from 'react';
 import { css } from '../utils/css.js';
 
-export default function MapView({ mapRef, legendBarRef, loading, loadMsg, errorMsg, panelOpen, showClickHint, legendTitle, legendMin, legendMax, legendUnit, onOpenPanel }) {
+export default function MapView({ mapRef, legendBarRef, loading, loadMsg, errorMsg, panelOpen, showClickHint, cursorMode, legendTitle, legendMin, legendMax, legendUnit, onOpenPanel }) {
   return (
-    <div style={css('flex:1;position:relative;min-width:0;background:#e8eaed;')}>
-      <div ref={mapRef} style={css('position:absolute;inset:0;')} />
+    <div style={css('flex:1;position:relative;min-width:0;background:#e8eaed;')} className={cursorMode === 'radius' ? 'map-cursor-crosshair' : ''}>
+      <div ref={mapRef} style={{ position: 'absolute', inset: 0 }} />
 
       {!panelOpen && (
         <button onClick={onOpenPanel} style={css('position:absolute;top:14px;left:14px;z-index:12;display:flex;align-items:center;gap:7px;height:36px;padding:0 14px;background:#003366;color:#fff;border:none;border-radius:4px;font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;box-shadow:0 8px 16px rgba(0,0,0,.10);')}>

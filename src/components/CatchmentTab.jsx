@@ -3,7 +3,7 @@ import { css } from '../utils/css.js';
 import { segStyle, co2Pill, rowStyle, pill } from '../utils/styles.js';
 
 export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetAreaLevel, onSetAreaMuni, onSetAreaZone, onSetFraz, onSetRadius, onToggleDir, onToggleCo2, onToggle, onNevralgico }) {
-  const [poliOpen, setPoliOpen] = useState(true);
+  const [poliOpen, setPoliOpen] = useState(false);
   return (
     <div style={css('padding:16px;display:flex;flex-direction:column;gap:16px;')}>
       <div style={css('font-size:12.5px;color:#5c6f82;line-height:1.45;')}>Da dove arrivano e dove vanno gli spostamenti di un'area, in modo <b style={{ color: '#17324d' }}>gerarchico</b>.</div>
@@ -34,7 +34,8 @@ export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetA
         <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>Tipologia selezione</div>
         <div style={css('display:flex;gap:5px;')}>
           <button onClick={() => onSetCatchMode('radius')} style={segStyle(s.catchMode === 'radius')}>Punto</button>
-          <button onClick={() => onSetCatchMode('area')} style={segStyle(s.catchMode === 'area')}>Area amministrativa</button>
+          <button onClick={() => onSetCatchMode('area')} style={segStyle(s.catchMode === 'area')}>Area</button>
+          <button onClick={() => onSetCatchMode('scroll')} style={segStyle(s.catchMode === 'scroll')}>Esplora</button>
         </div>
       </div>
 
@@ -87,11 +88,10 @@ export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetA
             <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>Ambito (livello)</div>
             <select onChange={(e) => onSetAreaLevel(e.target.value)} value={s.areaLevel} style={css('width:100%;height:36px;border:1px solid #c5c7c9;border-radius:4px;padding:0 9px;font-family:inherit;font-size:14px;color:#17324d;background:#fff;cursor:pointer;')}>
               <option value="">— scegli un livello —</option>
-              <option value="capitale">Roma Capitale — intera area metropolitana</option>
-              <option value="comune">Comune di Roma — tutta la città</option>
-              <option value="municipio">Municipio di Roma</option>
-              <option value="zona">Zona / Rione / Quartiere</option>
-              <option value="frazione">Frazione dell'area metropolitana</option>
+              <option value="comune">Comune di Roma</option>
+              <option value="municipio">Municipi di Roma</option>
+              <option value="zona">Quartieri</option>
+              <option value="frazione">Punto dell'area metropolitana</option>
             </select>
           </div>
           {(s.areaLevel === 'municipio' || s.areaLevel === 'zona') && (

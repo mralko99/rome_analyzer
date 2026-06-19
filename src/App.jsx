@@ -15,11 +15,19 @@ export default class App extends React.Component {
     this.state = {
       loading: true, loadMsg: 'Caricamento dati di mobilità…', errorMsg: '',
       mode: 'city', metric: 'out',
-      heatmap: true, grid: true, showMuniBounds: true, showMuniLabels: true, showQuartieriBounds: false, showQuartieriLabels: false, showNevralgic: true, showFrazioni: false,
+      heatmap: true, grid: true, showMuniBounds: true, showMuniLabels: true, showQuartieriBounds: false, showQuartieriLabels: false, showNevralgic: false, showFrazioni: false,
+      showComuniBounds: false, showComuniLabels: false,
+      comuniBorderColor: '#7c3aed', comuniBorderWidth: 1.5,
+      comuniLabelColor: '#7c3aed', comuniLabelSize: 11,
+      muniBorderColor: '#003366', muniBorderWidth: 1.8,
+      muniLabelColor: '#003366', muniLabelSize: 13,
+      quartieriBorderColor: '#3c64a0', quartieriBorderWidth: 0.8,
+      quartieriLabelColor: '#003278', quartieriLabelSize: 11,
+      frazLabelColor: '#004640', frazLabelSize: 10,
       basemap: 'positron', filterMuni: 0,
       heatColors: { out: null, inc: null, co2: null, internal: null },
       panelOpen: true, tab: 'settings',
-      catchMode: 'radius', catchFlags: { in: true, out: false, internal: false }, catchCo2: false, radiusKm: 0.6,
+      catchMode: 'radius', catchFlags: { in: true, out: true, internal: true }, catchCo2: false, radiusKm: 0.6,
       areaLevel: '', areaMuni: 0, areaZone: -1, frazId: -1,
       hasPoint: false, ptLng: 0, ptLat: 0,
     };
@@ -58,7 +66,7 @@ export default class App extends React.Component {
 
   async loadData() {
     try {
-      const [cells, metrics, panels, municipi, zone, frazioni, b64, quartieriGeo, etichette] = await Promise.all([
+      const [cells, metrics, panels, municipi, zone, frazioni, b64, quartieriGeo, comuniGeo] = await Promise.all([
         fetch(B + 'data/build/cells.json').then((r) => r.json()),
         fetch(B + 'data/build/metrics.json').then((r) => r.json()),
         fetch(B + 'data/build/panels.json').then((r) => r.json()),
@@ -67,11 +75,13 @@ export default class App extends React.Component {
         fetch(B + 'data/build/frazioni.json').then((r) => r.json()),
         fetch(B + 'data/build/od_packed.b64.txt').then((r) => r.text()),
         fetch(B + 'data/build/quartieri.geojson').then((r) => r.json()),
-        fetch(B + 'data/build/etichette.json').then((r) => r.json()),
+        fetch(B + 'data/build/comuni_provincia_roma.geojson').then((r) => r.json()),
       ]);
       this.data = { cells, metrics, panels, municipi, zone, frazioni };
       this.quartieriGeo = quartieriGeo;
-      this.etichetteLabelData = etichette.map((e) => ({ position: [e.lng, e.lat], text: e.etichetta }));
+      this.comuniGeo = comuniGeo;
+      this.comuniLabelData = (comuniGeo.features || []).map((f) => { const c = f.geometry; let pos; if (c.type === 'Polygon') { const ring = c.coordinates[0]; let sx = 0, sy = 0; ring.forEach(([x, y]) => { sx += x; sy += y; }); pos = [sx / ring.length, sy / ring.length]; } else if (c.type === 'MultiPolygon') { let sx = 0, sy = 0, cnt = 0; c.coordinates[0][0].forEach(([x, y]) => { sx += x; sy += y; cnt++; }); pos = [sx / cnt, sy / cnt]; } else { pos = [0, 0]; } return { position: pos, text: f.properties.name || '' }; }).filter((d) => d.text);
+      this.etichetteLabelData = zone.map((z) => ({ position: [z.cx, z.cy], text: z.name }));
       const bin = atob(b64.trim()); const bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
       this.od = new Uint16Array(bytes.buffer); this.odN = this.od.length / 3;
@@ -99,7 +109,7 @@ export default class App extends React.Component {
     this.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     this.overlay = new MapboxOverlay({ interleaved: true, layers: [], getTooltip: (i) => this.tooltip(i) });
     this.map.addControl(this.overlay);
-    this.map.on('click', (e) => { if (this._nevClick) { this._nevClick = false; return; } const _s = this.state; if (_s.catchMode === 'area') { this.setPointInArea(e.lngLat.lng, e.lngLat.lat); } else { this.setPoint(e.lngLat.lng, e.lngLat.lat); } });
+    this.map.on('click', (e) => { if (this._nevClick) { this._nevClick = false; return; } const _s = this.state; if (_s.catchMode === 'scroll') return; if (_s.catchMode === 'area') { this.setPointInArea(e.lngLat.lng, e.lngLat.lat); } else { this.setPoint(e.lngLat.lng, e.lngLat.lat); } });
     this.map.on('load', () => { if (this.allMuniBbox) { const _b = this.allMuniBbox; this.map.fitBounds([[_b[0], _b[1]], [_b[2], _b[3]]], { padding: 45, animate: false }); } this.updateLayers(); this.updateLegend(); });
     this.map.on('zoomend', () => this.refresh());
     this.applyPanel();
@@ -219,11 +229,13 @@ export default class App extends React.Component {
       else if (this.cat.circle) layers.push(new PolygonLayer({ id: 'circle', data: [{ polygon: this.circlePoly(this.cat.circle.lng, this.cat.circle.lat, this.cat.circle.km) }], getPolygon: (d) => d.polygon, filled: true, stroked: true, getFillColor: [0, 51, 102, 18], getLineColor: [0, 51, 102, 200], getLineWidth: 2, lineWidthUnits: 'pixels' }));
       layers.push(new ScatterplotLayer({ id: 'hub', data: [{ p: this.cat.hub }], getPosition: (d) => d.p, getFillColor: [255, 200, 0], getRadius: 8, radiusUnits: 'pixels', stroked: true, getLineColor: [0, 51, 102], lineWidthMinPixels: 2.5 }));
     }
-    if (s.showMuniBounds) { const _zoom = this.map ? this.map.getZoom() : 9; layers.push(new GeoJsonLayer({ id: 'bounds', data: this.boundaryGeo, stroked: true, filled: false, getLineColor: (f) => (s.filterMuni && f.properties.n === s.filterMuni) ? [204, 122, 0, 255] : (dark ? [255, 255, 255, 180] : [0, 51, 102, 180]), getLineWidth: (f) => (s.filterMuni && f.properties.n === s.filterMuni) ? 3 : 1.8, lineWidthUnits: 'pixels', lineWidthMinPixels: 1.4, updateTriggers: { getLineColor: [s.filterMuni, s.basemap], getLineWidth: [s.filterMuni] } })); }
-    if (s.showMuniLabels && this.muniLabelData && this.muniLabelData.length) { const _zoom = this.map ? this.map.getZoom() : 9; layers.push(new TextLayer({ id: 'munilabels', data: this.muniLabelData, getPosition: (d) => d.position, getText: (d) => d.text, getSize: Math.min(16, Math.max(11, (_zoom - 9) * 3 + 11)), getColor: dark ? [255, 255, 255, 235] : [0, 51, 102, 235], getBackgroundColor: dark ? [0, 20, 50, 190] : [255, 255, 255, 210], background: true, backgroundPadding: [5, 3], fontWeight: 700, fontFamily: "'Titillium Web',sans-serif", billboard: false, sizeUnits: 'pixels', getTextAnchor: 'middle', getAlignmentBaseline: 'center', updateTriggers: { getColor: [s.basemap], getBackgroundColor: [s.basemap] } })); }
-    if (s.showQuartieriBounds && this.quartieriGeo) { layers.push(new GeoJsonLayer({ id: 'quartieri-bounds', data: this.quartieriGeo, stroked: true, filled: false, getLineColor: dark ? [200, 200, 255, 130] : [60, 100, 160, 130], getLineWidth: 0.8, lineWidthUnits: 'pixels', lineWidthMinPixels: 0.7 })); }
-    if (s.showQuartieriLabels && this.etichetteLabelData) { const _qzoom = this.map ? this.map.getZoom() : 9; layers.push(new TextLayer({ id: 'quartieriLabels', data: this.etichetteLabelData, getPosition: (d) => d.position, getText: (d) => d.text, getSize: Math.min(13, Math.max(9, (_qzoom - 9) * 2 + 9)), getColor: dark ? [210, 230, 255, 220] : [0, 50, 120, 210], getBackgroundColor: dark ? [0, 20, 60, 170] : [240, 245, 255, 200], background: true, backgroundPadding: [4, 2], fontFamily: "'Titillium Web',sans-serif", fontWeight: 600, billboard: false, sizeUnits: 'pixels', getTextAnchor: 'middle', getAlignmentBaseline: 'center', updateTriggers: { getColor: [s.basemap], getBackgroundColor: [s.basemap] } })); }
-    if (s.showFrazioni && this.frazLabelData) { const _fzoom = this.map ? this.map.getZoom() : 9; if (_fzoom >= 11) layers.push(new TextLayer({ id: 'frazlabels', data: this.frazLabelData, getPosition: (d) => d.position, getText: (d) => d.text, getSize: 10, getColor: dark ? [180, 230, 220, 230] : [0, 70, 60, 220], getBackgroundColor: dark ? [0, 30, 25, 180] : [240, 255, 253, 215], background: true, backgroundPadding: [4, 2], fontFamily: "'Titillium Web',sans-serif", fontWeight: 600, billboard: false, sizeUnits: 'pixels', getTextAnchor: 'middle', getAlignmentBaseline: 'center', updateTriggers: { getColor: [s.basemap], getBackgroundColor: [s.basemap] } })); }
+    if (s.showMuniBounds) { const mb = this.hex2rgb(s.muniBorderColor); layers.push(new GeoJsonLayer({ id: 'bounds', data: this.boundaryGeo, stroked: true, filled: false, getLineColor: (f) => (s.filterMuni && f.properties.n === s.filterMuni) ? [204, 122, 0, 255] : [...mb, 220], getLineWidth: (f) => (s.filterMuni && f.properties.n === s.filterMuni) ? Math.max(s.muniBorderWidth, 2.5) : s.muniBorderWidth, lineWidthUnits: 'pixels', lineWidthMinPixels: 1, updateTriggers: { getLineColor: [s.filterMuni, s.muniBorderColor], getLineWidth: [s.filterMuni, s.muniBorderWidth] } })); }
+    if (s.showMuniLabels && this.muniLabelData && this.muniLabelData.length) { const ml = this.hex2rgb(s.muniLabelColor); layers.push(new TextLayer({ id: 'munilabels', data: this.muniLabelData, getPosition: (d) => d.position, getText: (d) => d.text, getSize: s.muniLabelSize, getColor: [...ml, 235], getBackgroundColor: dark ? [0, 0, 0, 190] : [255, 255, 255, 210], background: true, backgroundPadding: [5, 3], fontWeight: 700, fontFamily: "'Titillium Web',sans-serif", billboard: false, sizeUnits: 'pixels', getTextAnchor: 'middle', getAlignmentBaseline: 'center', updateTriggers: { getColor: [s.muniLabelColor], getSize: [s.muniLabelSize], getBackgroundColor: [s.basemap] } })); }
+    if (s.showQuartieriBounds && this.quartieriGeo) { const qb = this.hex2rgb(s.quartieriBorderColor); layers.push(new GeoJsonLayer({ id: 'quartieri-bounds', data: this.quartieriGeo, stroked: true, filled: false, getLineColor: [...qb, 180], getLineWidth: s.quartieriBorderWidth, lineWidthUnits: 'pixels', lineWidthMinPixels: 0.5, updateTriggers: { getLineColor: [s.quartieriBorderColor], getLineWidth: [s.quartieriBorderWidth] } })); }
+    if (s.showQuartieriLabels && this.etichetteLabelData) { const ql = this.hex2rgb(s.quartieriLabelColor); layers.push(new TextLayer({ id: 'quartieriLabels', data: this.etichetteLabelData, getPosition: (d) => d.position, getText: (d) => d.text, getSize: s.quartieriLabelSize, getColor: [...ql, 220], getBackgroundColor: dark ? [0, 0, 0, 170] : [240, 245, 255, 200], background: true, backgroundPadding: [4, 2], fontFamily: "'Titillium Web',sans-serif", fontWeight: 600, billboard: false, sizeUnits: 'pixels', getTextAnchor: 'middle', getAlignmentBaseline: 'center', updateTriggers: { getColor: [s.quartieriLabelColor], getSize: [s.quartieriLabelSize], getBackgroundColor: [s.basemap] } })); }
+    if (s.showFrazioni && this.frazLabelData) { const fl = this.hex2rgb(s.frazLabelColor); const _fzoom = this.map ? this.map.getZoom() : 9; if (_fzoom >= 11) layers.push(new TextLayer({ id: 'frazlabels', data: this.frazLabelData, getPosition: (d) => d.position, getText: (d) => d.text, getSize: s.frazLabelSize, getColor: [...fl, 230], getBackgroundColor: dark ? [0, 0, 0, 180] : [240, 255, 253, 215], background: true, backgroundPadding: [4, 2], fontFamily: "'Titillium Web',sans-serif", fontWeight: 600, billboard: false, sizeUnits: 'pixels', getTextAnchor: 'middle', getAlignmentBaseline: 'center', updateTriggers: { getColor: [s.frazLabelColor], getSize: [s.frazLabelSize], getBackgroundColor: [s.basemap] } })); }
+    if (s.showComuniBounds && this.comuniGeo) { const bc = this.hex2rgb(s.comuniBorderColor); layers.push(new GeoJsonLayer({ id: 'comuni-bounds', data: this.comuniGeo, stroked: true, filled: false, pickable: true, autoHighlight: true, highlightColor: [...this.hex2rgb(s.comuniBorderColor), 60], getLineColor: [...bc, 220], getLineWidth: s.comuniBorderWidth, lineWidthUnits: 'pixels', lineWidthMinPixels: 1, updateTriggers: { getLineColor: [s.comuniBorderColor], getLineWidth: [s.comuniBorderWidth] } })); }
+    if (s.showComuniLabels && this.comuniLabelData) { const lc = this.hex2rgb(s.comuniLabelColor); layers.push(new TextLayer({ id: 'comuni-labels', data: this.comuniLabelData, getPosition: (d) => d.position, getText: (d) => d.text, getSize: s.comuniLabelSize, getColor: [...lc, 235], getBackgroundColor: dark ? [10, 0, 30, 185] : [255, 255, 255, 215], background: true, backgroundPadding: [4, 2], fontFamily: "'Titillium Web',sans-serif", fontWeight: 600, billboard: false, sizeUnits: 'pixels', getTextAnchor: 'middle', getAlignmentBaseline: 'center', updateTriggers: { getColor: [s.comuniLabelColor, s.basemap], getSize: [s.comuniLabelSize], getBackgroundColor: [s.basemap] } })); }
     if (s.showNevralgic) layers.push(new ScatterplotLayer({ id: 'nevralgic', data: PUNTI_NEVRALGICI, getPosition: (d) => [d.longitudine, d.latitudine], getFillColor: (d) => nevralgicoColor(d.tipologia), getLineColor: [255, 255, 255], getRadius: 9, radiusUnits: 'pixels', stroked: true, lineWidthMinPixels: 2, pickable: true, autoHighlight: true, highlightColor: [255, 240, 150, 120], onClick: (info) => { if (info.object) this.setNevralgicPoint(info.object); } }));
     this.overlay.setProps({ layers });
   }
@@ -262,11 +274,12 @@ export default class App extends React.Component {
     if (layer.id === 'hex') { const id = object.id, m = this.data.metrics, c = this.data.cells; const mn = this.zoneNameAtZoom(id); return { html: `<div style="font-family:'Titillium Web',sans-serif;min-width:150px"><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;opacity:.6;margin-bottom:2px">${mn}</div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Uscenti</span><b>${fmt(m.out[id] || 0)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Entranti</span><b>${fmt(m.inc[id] || 0)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Interni</span><b>${fmt(m.internal[id] || 0)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>CO₂ t/g</span><b>${(m.co2[id] || 0).toFixed(2)}</b></div></div>`, style: this.ttStyle() }; }
     if (layer.id === 'conn') { const c = this.data.cells, mn = c.muni[object.id] ? (this.muniName[c.muni[object.id]] || '') : 'Area periurbana'; const kg = (g) => (g / 1000).toLocaleString('it-IT', { maximumFractionDigits: 0 }); return { html: `<div style="font-family:'Titillium Web',sans-serif;min-width:160px"><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;opacity:.6;margin-bottom:2px">${mn}</div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Verso il bacino</span><b>${fmt(this.cat.inMap[object.id] || 0)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Dal bacino</span><b>${fmt(this.cat.outMap[object.id] || 0)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px;opacity:.8"><span>CO₂ kg/g</span><b>${kg((this.cat.co2In[object.id] || 0) + (this.cat.co2Out[object.id] || 0))}</b></div></div>`, style: this.ttStyle() }; }
     if (layer.id === 'nevralgic') { const p = object; return { html: `<div style="font-family:'Titillium Web',sans-serif;max-width:220px"><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;opacity:.6;margin-bottom:3px">${p.tipologia}</div><div style="font-size:13px;font-weight:700;margin-bottom:5px">${p.nome}</div><div style="font-size:11px;opacity:.85;line-height:1.4">${p.note}</div><div style="font-size:10px;opacity:.5;margin-top:4px">Raggio bacino: ${p.raggio_cattura_km} km · clicca per analizzare</div></div>`, style: this.ttStyle() }; }
+    if (layer.id === 'comuni-bounds') { const p = object.properties || {}; const istat = p.istat ? `<div style="display:flex;justify-content:space-between;gap:14px;font-size:11px;opacity:.7"><span>ISTAT</span><b>${p.istat}</b></div>` : ''; const pop = p.popolazione ? `<div style="display:flex;justify-content:space-between;gap:14px;font-size:11px;opacity:.7"><span>Popolazione</span><b>${Number(p.popolazione).toLocaleString('it-IT')}</b></div>` : ''; return { html: `<div style="font-family:'Titillium Web',sans-serif;min-width:150px"><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;opacity:.6;margin-bottom:3px">Comune</div><div style="font-size:13px;font-weight:700;margin-bottom:4px">${p.name || ''}</div>${istat}${pop}</div>`, style: this.ttStyle() }; }
     return null;
   }
   ttStyle() { return { background: '#003366', color: '#fff', padding: '8px 11px', borderRadius: '4px', boxShadow: '0 8px 16px rgba(0,0,0,.2)', fontSize: '12px' }; }
 
-  refresh() { this.updateLayers(); this.updateLegend(); this.updateColorPreview(); if (this.map) { const _s = this.state; this.map.getCanvas().style.cursor = (_s.tab === 'catchment' && _s.catchMode === 'radius') ? 'crosshair' : ''; } }
+  refresh() { this.updateLayers(); this.updateLegend(); this.updateColorPreview(); }
   setMetric(m) { this.setState({ metric: m }, () => this.refresh()); }
   toggle(k) { this.setState((s) => ({ [k]: !s[k] }), () => this.refresh()); }
   setHeatColor(v) { this.setState((s) => ({ heatColors: { ...s.heatColors, [s.metric]: v } }), () => this.refresh()); }
@@ -277,6 +290,7 @@ export default class App extends React.Component {
   toggleCo2() { this.setState((s) => ({ catchCo2: !s.catchCo2 }), () => this.refresh()); }
   setBasemapVal(v) { this.setState({ basemap: v }); if (this.map) { this.map.setStyle(this.STYLES[v]); this.map.once('styledata', () => setTimeout(() => { this.updateLayers(); this.updateLegend(); }, 120)); } }
   setFilterVal(v) { v = +v; this.setState({ filterMuni: v }, () => this.refresh()); if (this.map) { if (v && this.muniBbox[v]) { const b = this.muniBbox[v]; this.map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 60, duration: 700 }); } else this.map.flyTo({ center: [12.52, 41.9], zoom: 9.3, duration: 700 }); } }
+  setLayerStyle(k, v) { this.setState({ [k]: v }, () => this.refresh()); }
 
   nearestName(lat, lng) { const c = this.data.cells; let mn = 0, bd = 1e9; for (let id = 1; id <= c.maxId; id++) { if (!c.h3[id]) continue; const d = this.hav(lat, lng, c.lat[id], c.lng[id]); if (d < bd) { bd = d; mn = c.muni[id]; } } return mn ? (this.muniName[mn] || 'Punto selezionato') : 'Area periurbana'; }
   setPoint(lng, lat, name) { this._ptName = name || this.nearestName(lat, lng); this.setState({ hasPoint: true, ptLng: lng, ptLat: lat, mode: 'catchment', catchMode: 'radius', areaLevel: '' }, () => { this.computeCatchment(); this.refresh(); }); }
@@ -397,7 +411,7 @@ export default class App extends React.Component {
 
   render() {
     const s = this.state, v = this.viewModel();
-    const showClickHint = !s.loading && s.mode === 'city' && s.tab !== 'stats';
+    const showClickHint = !s.loading && s.mode === 'city' && s.tab !== 'stats' && s.catchMode !== 'scroll';
     return (
       <div style={css('display:flex;flex-direction:column;height:100vh;width:100vw;overflow:hidden;background:#f5f5f5;')}>
         <AppHeader onExport={() => this.exportPNG()} />
@@ -411,6 +425,7 @@ export default class App extends React.Component {
             errorMsg={s.errorMsg}
             panelOpen={s.panelOpen}
             showClickHint={showClickHint}
+            cursorMode={s.catchMode}
             legendTitle={v.legendTitle}
             legendMin={v.legendMin}
             legendMax={v.legendMax}
@@ -443,6 +458,7 @@ export default class App extends React.Component {
             onToggleCo2={() => this.toggleCo2()}
             onClearPoint={() => this.clearPoint()}
             onNevralgico={(p) => this.setNevralgicPoint(p)}
+            onSetLayerStyle={(k, v) => this.setLayerStyle(k, v)}
           />
         </div>
       </div>
