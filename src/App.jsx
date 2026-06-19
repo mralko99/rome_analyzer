@@ -2,7 +2,7 @@ import React from 'react';
 import maplibregl from 'maplibre-gl';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import { H3HexagonLayer } from '@deck.gl/geo-layers';
-import { GeoJsonLayer, ArcLayer, ScatterplotLayer, PolygonLayer } from '@deck.gl/layers';
+import { GeoJsonLayer, ArcLayer, ScatterplotLayer, PolygonLayer, TextLayer } from '@deck.gl/layers';
 import { css, B } from './utils/css.js';
 import PUNTI_NEVRALGICI, { nevralgicoColor } from './data/puntiNevralgici.js';
 import AppHeader from './components/AppHeader.jsx';
@@ -15,9 +15,8 @@ export default class App extends React.Component {
     this.state = {
       loading: true, loadMsg: 'Caricamento dati di mobilità…', errorMsg: '',
       mode: 'city', metric: 'out',
-      heatmap: true, grid: true, bounds: true, showNevralgic: true,
+      heatmap: true, grid: true, showMuniBounds: true, showMuniLabels: true, showQuartieriBounds: false, showQuartieriLabels: false, showNevralgic: true, showFrazioni: false,
       basemap: 'positron', filterMuni: 0,
-      timeEnabled: false, hourStart: 7, hourEnd: 9,
       heatColors: { out: null, inc: null, co2: null },
       panelOpen: true, tab: 'settings',
       catchMode: 'radius', catchDir: 'in', catchCo2: false, radiusKm: 0.6,
@@ -33,11 +32,11 @@ export default class App extends React.Component {
     this.metricShort = { out: 'Uscenti', inc: 'Entranti', co2: 'CO₂' };
     this.SWATCHES = ['#81ecec', '#ff7675', '#0984e3', '#00b894', '#fdcb6e'];
     this.EF = 117;
-    this.HFR = [0.004,0.003,0.002,0.002,0.004,0.010,0.030,0.070,0.105,0.072,0.050,0.045,0.050,0.045,0.044,0.050,0.072,0.100,0.088,0.050,0.032,0.020,0.013,0.009];
+
     this.STYLES = {
-      positron: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-      voyager: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
-      dark: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+      positron: 'https://basemaps.cartocdn.com/gl/positron-nolabels-gl-style/style.json',
+      voyager: 'https://basemaps.cartocdn.com/gl/voyager-nolabels-gl-style/style.json',
+      dark: 'https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json',
     };
     this.METRIC_LABEL = { out: 'Spostamenti uscenti', inc: 'Spostamenti entranti', co2: 'Emissioni CO₂' };
   }
@@ -52,7 +51,7 @@ export default class App extends React.Component {
 
   async loadData() {
     try {
-      const [cells, metrics, panels, municipi, zone, frazioni, b64] = await Promise.all([
+      const [cells, metrics, panels, municipi, zone, frazioni, b64, quartieriGeo, etichette] = await Promise.all([
         fetch(B + 'data/build/cells.json').then((r) => r.json()),
         fetch(B + 'data/build/metrics.json').then((r) => r.json()),
         fetch(B + 'data/build/panels.json').then((r) => r.json()),
@@ -60,8 +59,12 @@ export default class App extends React.Component {
         fetch(B + 'data/build/zone.json').then((r) => r.json()),
         fetch(B + 'data/build/frazioni.json').then((r) => r.json()),
         fetch(B + 'data/build/od_packed.b64.txt').then((r) => r.text()),
+        fetch(B + 'data/build/quartieri.geojson').then((r) => r.json()),
+        fetch(B + 'data/build/etichette.json').then((r) => r.json()),
       ]);
       this.data = { cells, metrics, panels, municipi, zone, frazioni };
+      this.quartieriGeo = quartieriGeo;
+      this.etichetteLabelData = etichette.map((e) => ({ position: [e.lng, e.lat], text: e.etichetta }));
       const bin = atob(b64.trim()); const bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
       this.od = new Uint16Array(bytes.buffer); this.odN = this.od.length / 3;
@@ -74,9 +77,12 @@ export default class App extends React.Component {
       this.muniCentroid = {}; Object.keys(cn).forEach((k) => (this.muniCentroid[k] = [sl[k] / cn[k], sa[k] / cn[k]]));
       this.gridCenter = [gx / gc, gy / gc]; this.romaCentroid = [rx / rc, ry / rc];
       this.zoneById = {}; zone.forEach((z) => (this.zoneById[z.id] = z));
+      const zFeats = []; zone.forEach((z) => { z.rings.forEach((r) => zFeats.push({ type: 'Feature', properties: { id: z.id, name: z.name, tipo: z.tipo, muni: z.muni }, geometry: { type: 'Polygon', coordinates: [r] } })); }); this.zoneGeo = { type: 'FeatureCollection', features: zFeats };
       const feats = []; this.muniName = {}; this.muniBbox = {}; this.muniRings = {};
       municipi.forEach((m) => { this.muniName[m.numero] = m.name; this.muniBbox[m.numero] = m.bbox; this.muniRings[m.numero] = m.rings; m.rings.forEach((r) => feats.push({ type: 'Feature', properties: { n: m.numero }, geometry: { type: 'Polygon', coordinates: [r] } })); });
       this.boundaryGeo = { type: 'FeatureCollection', features: feats };
+      let _bx0 = Infinity, _by0 = Infinity, _bx1 = -Infinity, _by1 = -Infinity; this.muniLabelData = []; municipi.forEach((m) => { const b = m.bbox; if (b[0] < _bx0) _bx0 = b[0]; if (b[1] < _by0) _by0 = b[1]; if (b[2] > _bx1) _bx1 = b[2]; if (b[3] > _by1) _by1 = b[3]; const pos = this.muniCentroid[m.numero]; if (pos) this.muniLabelData.push({ position: pos, text: m.roman }); }); this.allMuniBbox = [_bx0, _by0, _bx1, _by1];
+      this.frazLabelData = frazioni.map((f) => ({ position: [f.lng, f.lat], text: f.name, tipo: f.tipo }));
       this.setState({ loading: false }, () => this.initMap());
     } catch (e) { this.setState({ loading: false, errorMsg: 'Errore nel caricamento dei dati: ' + e.message }); }
   }
@@ -87,7 +93,8 @@ export default class App extends React.Component {
     this.overlay = new MapboxOverlay({ interleaved: true, layers: [], getTooltip: (i) => this.tooltip(i) });
     this.map.addControl(this.overlay);
     this.map.on('click', (e) => { if (this._nevClick) { this._nevClick = false; return; } this.setPoint(e.lngLat.lng, e.lngLat.lat); });
-    this.map.on('load', () => { this.updateLayers(); this.updateLegend(); });
+    this.map.on('load', () => { if (this.allMuniBbox) { const _b = this.allMuniBbox; this.map.fitBounds([[_b[0], _b[1]], [_b[2], _b[3]]], { padding: 45, animate: false }); } this.updateLayers(); this.updateLegend(); });
+    this.map.on('zoomend', () => this.refresh());
     this.applyPanel();
   }
 
@@ -100,11 +107,9 @@ export default class App extends React.Component {
   catchStops() { const s = this.state; if (s.catchCo2) return this.stopsForMetric('co2'); if (s.catchDir === 'both') return null; return this.stopsForMetric(s.catchDir === 'in' ? 'inc' : 'out'); }
   ramp(t, stops) { const n = stops.length - 1; let x = t * n; if (x < 0) x = 0; if (x > n) x = n; let i = Math.floor(x); if (i >= n) i = n - 1; const u = x - i, a = stops[i], b = stops[i + 1]; return [Math.round(a[0] + (b[0] - a[0]) * u), Math.round(a[1] + (b[1] - a[1]) * u), Math.round(a[2] + (b[2] - a[2]) * u)]; }
 
-  timeFactor() { const s = this.state; if (!s.timeEnabled) return 1; let f = 0, a = Math.min(s.hourStart, s.hourEnd), b = Math.max(s.hourStart, s.hourEnd); for (let h = a; h <= b; h++) f += this.HFR[h]; return f; }
-
   cityColor(id) {
-    const k = this.state.metric, f = this.timeFactor(), stops = this.cityStops();
-    const v = (this.data.metrics[k][id] || 0) * f; if (!(v > 0)) return [0, 0, 0, 0];
+    const k = this.state.metric, stops = this.cityStops();
+    const v = (this.data.metrics[k][id] || 0); if (!(v > 0)) return [0, 0, 0, 0];
     let t = Math.log(1 + v) / Math.log(1 + this.vmax[k]); if (t > 1) t = 1;
     const c = this.ramp(t, stops); let a = 205; const fm = this.state.filterMuni; if (fm && this.data.cells.muni[id] !== fm) a = 16;
     return [c[0], c[1], c[2], a];
@@ -155,14 +160,13 @@ export default class App extends React.Component {
   updateLayers() {
     if (!this.overlay || !this.data) return;
     const s = this.state, layers = [], dark = s.basemap === 'dark';
-    if (s.mode === 'city') {
-      if (s.heatmap || s.grid) layers.push(new H3HexagonLayer({
-        id: 'hex', data: this.hexData, getHexagon: (d) => d.h3, extruded: false, filled: s.heatmap, stroked: s.grid,
-        getFillColor: (d) => this.cityColor(d.id), getLineColor: dark ? [255, 255, 255, 30] : [23, 50, 77, 32], lineWidthMinPixels: 0.5, getLineWidth: 1,
-        pickable: true, autoHighlight: true, highlightColor: [0, 102, 204, 90],
-        updateTriggers: { getFillColor: [s.metric, s.timeEnabled, s.hourStart, s.hourEnd, s.filterMuni, s.heatmap, JSON.stringify(s.heatColors)] },
-      }));
-    } else if (this.cat) {
+    if (s.heatmap || s.grid) layers.push(new H3HexagonLayer({
+      id: 'hex', data: this.hexData, getHexagon: (d) => d.h3, extruded: false, filled: s.heatmap, stroked: s.grid,
+      getFillColor: (d) => this.cityColor(d.id), getLineColor: dark ? [255, 255, 255, 30] : [23, 50, 77, 32], lineWidthMinPixels: 0.5, getLineWidth: 1,
+      pickable: true, autoHighlight: true, highlightColor: [0, 102, 204, 90],
+      updateTriggers: { getFillColor: [s.metric, s.filterMuni, s.heatmap, JSON.stringify(s.heatColors)] },
+    }));
+    if (this.cat) {
       const c = this.data.cells, conn = [], keys = {};
       if (s.catchDir !== 'out') { const m = s.catchCo2 ? this.cat.co2In : this.cat.inMap; Object.keys(m).forEach((k) => (keys[k] = 1)); }
       if (s.catchDir !== 'in') { const m = s.catchCo2 ? this.cat.co2Out : this.cat.outMap; Object.keys(m).forEach((k) => (keys[k] = 1)); }
@@ -170,7 +174,7 @@ export default class App extends React.Component {
       this.connInfo = { vmax }; const vlog = Math.log(1 + vmax);
       const cStops = this.catchStops(), aStops = this.stopsForMetric('inc'), tStops = this.stopsForMetric('out'), both = s.catchDir === 'both' && !s.catchCo2;
       layers.push(new H3HexagonLayer({
-        id: 'conn', data: conn, getHexagon: (d) => d.h3, filled: true, stroked: false,
+        id: 'conn', data: conn, getHexagon: (d) => d.h3, extruded: false, filled: true, stroked: false,
         getFillColor: (d) => {
           let t = Math.log(1 + d.v) / vlog; if (t > 1) t = 1; if (t < 0.05) t = 0.05;
           if (!both) { const col = this.ramp(t, cStops); return [col[0], col[1], col[2], 225]; }
@@ -182,14 +186,17 @@ export default class App extends React.Component {
       }));
       const hub = this.cat.hub, top = conn.slice().sort((a, b) => b.v - a.v).slice(0, 28), tf = top.length ? top[0].v : 1, arcsIn = [], arcsOut = [];
       top.forEach((t) => { const cell = [c.lng[t.id], c.lat[t.id]], iv = s.catchCo2 ? (this.cat.co2In[t.id] || 0) : (this.cat.inMap[t.id] || 0), ov = s.catchCo2 ? (this.cat.co2Out[t.id] || 0) : (this.cat.outMap[t.id] || 0); if (s.catchDir !== 'out' && iv) arcsIn.push({ from: cell, to: hub, f: iv }); if (s.catchDir !== 'in' && ov) arcsOut.push({ from: hub, to: cell, f: ov }); });
-      if (arcsIn.length) layers.push(new ArcLayer({ id: 'arcin', data: arcsIn, getSourcePosition: (d) => d.from, getTargetPosition: (d) => d.to, getSourceColor: [204, 122, 0, 70], getTargetColor: [204, 122, 0, 240], getWidth: (d) => 1 + (d.f / tf) * 8, widthUnits: 'pixels', getHeight: 0.45 }));
-      if (arcsOut.length) layers.push(new ArcLayer({ id: 'arcout', data: arcsOut, getSourcePosition: (d) => d.from, getTargetPosition: (d) => d.to, getSourceColor: [7, 127, 123, 240], getTargetColor: [11, 203, 197, 70], getWidth: (d) => 1 + (d.f / tf) * 8, widthUnits: 'pixels', getHeight: 0.45 }));
+      if (arcsIn.length) layers.push(new ArcLayer({ id: 'arcin', data: arcsIn, getSourcePosition: (d) => d.from, getTargetPosition: (d) => d.to, getSourceColor: [204, 122, 0, 70], getTargetColor: [204, 122, 0, 240], getWidth: (d) => 1 + (d.f / tf) * 8, widthUnits: 'pixels', getHeight: 0 }));
+      if (arcsOut.length) layers.push(new ArcLayer({ id: 'arcout', data: arcsOut, getSourcePosition: (d) => d.from, getTargetPosition: (d) => d.to, getSourceColor: [7, 127, 123, 240], getTargetColor: [11, 203, 197, 70], getWidth: (d) => 1 + (d.f / tf) * 8, widthUnits: 'pixels', getHeight: 0 }));
       if (this.cat.polyRings) layers.push(new GeoJsonLayer({ id: 'areafill', data: { type: 'FeatureCollection', features: this.cat.polyRings.map((r) => ({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [r] } })) }, stroked: true, filled: true, getFillColor: [0, 51, 102, 24], getLineColor: [0, 51, 102, 235], getLineWidth: 2.5, lineWidthUnits: 'pixels' }));
       else if (this.cat.circle) layers.push(new PolygonLayer({ id: 'circle', data: [{ polygon: this.circlePoly(this.cat.circle.lng, this.cat.circle.lat, this.cat.circle.km) }], getPolygon: (d) => d.polygon, filled: true, stroked: true, getFillColor: [0, 51, 102, 18], getLineColor: [0, 51, 102, 200], getLineWidth: 2, lineWidthUnits: 'pixels' }));
-      if (s.grid) layers.push(new H3HexagonLayer({ id: 'ctxgrid', data: this.hexData, getHexagon: (d) => d.h3, filled: false, stroked: true, getLineColor: dark ? [255, 255, 255, 45] : [23, 50, 77, 48], lineWidthMinPixels: 0.5 }));
       layers.push(new ScatterplotLayer({ id: 'hub', data: [{ p: hub }], getPosition: (d) => d.p, getFillColor: [255, 200, 0], getRadius: 8, radiusUnits: 'pixels', stroked: true, getLineColor: [0, 51, 102], lineWidthMinPixels: 2.5 }));
     }
-    if (s.bounds) layers.push(new GeoJsonLayer({ id: 'bounds', data: this.boundaryGeo, stroked: true, filled: false, getLineColor: (f) => (s.filterMuni && f.properties.n === s.filterMuni) ? [204, 122, 0, 255] : (dark ? [255, 255, 255, 150] : [0, 51, 102, 150]), getLineWidth: (f) => (s.filterMuni && f.properties.n === s.filterMuni) ? 3 : 1.4, lineWidthUnits: 'pixels', lineWidthMinPixels: 1.2, updateTriggers: { getLineColor: [s.filterMuni, s.basemap], getLineWidth: [s.filterMuni] } }));
+    if (s.showMuniBounds) { const _zoom = this.map ? this.map.getZoom() : 9; layers.push(new GeoJsonLayer({ id: 'bounds', data: this.boundaryGeo, stroked: true, filled: false, getLineColor: (f) => (s.filterMuni && f.properties.n === s.filterMuni) ? [204, 122, 0, 255] : (dark ? [255, 255, 255, 180] : [0, 51, 102, 180]), getLineWidth: (f) => (s.filterMuni && f.properties.n === s.filterMuni) ? 3 : 1.8, lineWidthUnits: 'pixels', lineWidthMinPixels: 1.4, updateTriggers: { getLineColor: [s.filterMuni, s.basemap], getLineWidth: [s.filterMuni] } })); }
+    if (s.showMuniLabels && this.muniLabelData && this.muniLabelData.length) { const _zoom = this.map ? this.map.getZoom() : 9; layers.push(new TextLayer({ id: 'munilabels', data: this.muniLabelData, getPosition: (d) => d.position, getText: (d) => d.text, getSize: Math.min(16, Math.max(11, (_zoom - 9) * 3 + 11)), getColor: dark ? [255, 255, 255, 235] : [0, 51, 102, 235], getBackgroundColor: dark ? [0, 20, 50, 190] : [255, 255, 255, 210], background: true, backgroundPadding: [5, 3], fontWeight: 700, fontFamily: "'Titillium Web',sans-serif", billboard: false, sizeUnits: 'pixels', getTextAnchor: 'middle', getAlignmentBaseline: 'center', updateTriggers: { getColor: [s.basemap], getBackgroundColor: [s.basemap] } })); }
+    if (s.showQuartieriBounds && this.quartieriGeo) { layers.push(new GeoJsonLayer({ id: 'quartieri-bounds', data: this.quartieriGeo, stroked: true, filled: false, getLineColor: dark ? [200, 200, 255, 130] : [60, 100, 160, 130], getLineWidth: 0.8, lineWidthUnits: 'pixels', lineWidthMinPixels: 0.7 })); }
+    if (s.showQuartieriLabels && this.etichetteLabelData) { const _qzoom = this.map ? this.map.getZoom() : 9; layers.push(new TextLayer({ id: 'quartieriLabels', data: this.etichetteLabelData, getPosition: (d) => d.position, getText: (d) => d.text, getSize: Math.min(13, Math.max(9, (_qzoom - 9) * 2 + 9)), getColor: dark ? [210, 230, 255, 220] : [0, 50, 120, 210], getBackgroundColor: dark ? [0, 20, 60, 170] : [240, 245, 255, 200], background: true, backgroundPadding: [4, 2], fontFamily: "'Titillium Web',sans-serif", fontWeight: 600, billboard: false, sizeUnits: 'pixels', getTextAnchor: 'middle', getAlignmentBaseline: 'center', updateTriggers: { getColor: [s.basemap], getBackgroundColor: [s.basemap] } })); }
+    if (s.showFrazioni && this.frazLabelData) { const _fzoom = this.map ? this.map.getZoom() : 9; if (_fzoom >= 11) layers.push(new TextLayer({ id: 'frazlabels', data: this.frazLabelData, getPosition: (d) => d.position, getText: (d) => d.text, getSize: 10, getColor: dark ? [180, 230, 220, 230] : [0, 70, 60, 220], getBackgroundColor: dark ? [0, 30, 25, 180] : [240, 255, 253, 215], background: true, backgroundPadding: [4, 2], fontFamily: "'Titillium Web',sans-serif", fontWeight: 600, billboard: false, sizeUnits: 'pixels', getTextAnchor: 'middle', getAlignmentBaseline: 'center', updateTriggers: { getColor: [s.basemap], getBackgroundColor: [s.basemap] } })); }
     if (s.showNevralgic) layers.push(new ScatterplotLayer({ id: 'nevralgic', data: PUNTI_NEVRALGICI, getPosition: (d) => [d.longitudine, d.latitudine], getFillColor: (d) => nevralgicoColor(d.tipologia), getLineColor: [255, 255, 255], getRadius: 9, radiusUnits: 'pixels', stroked: true, lineWidthMinPixels: 2, pickable: true, autoHighlight: true, highlightColor: [255, 240, 150, 120], onClick: (info) => { if (info.object) this.setNevralgicPoint(info.object); } }));
     this.overlay.setProps({ layers });
   }
@@ -210,7 +217,7 @@ export default class App extends React.Component {
 
   tooltip({ object, layer }) {
     if (!object || !layer) return null; const fmt = (n) => Math.round(n).toLocaleString('it-IT');
-    if (layer.id === 'hex') { const id = object.id, m = this.data.metrics, c = this.data.cells, f = this.timeFactor(); const mn = c.muni[id] ? (this.muniName[c.muni[id]] || '') : 'Area periurbana'; return { html: `<div style="font-family:'Titillium Web',sans-serif;min-width:150px"><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;opacity:.6;margin-bottom:2px">${mn}</div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Uscenti</span><b>${fmt((m.out[id] || 0) * f)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Entranti</span><b>${fmt((m.inc[id] || 0) * f)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>CO₂ t/g</span><b>${((m.co2[id] || 0) * f).toFixed(2)}</b></div></div>`, style: this.ttStyle() }; }
+    if (layer.id === 'hex') { const id = object.id, m = this.data.metrics, c = this.data.cells; const mn = c.muni[id] ? (this.muniName[c.muni[id]] || '') : 'Area periurbana'; return { html: `<div style="font-family:'Titillium Web',sans-serif;min-width:150px"><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;opacity:.6;margin-bottom:2px">${mn}</div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Uscenti</span><b>${fmt(m.out[id] || 0)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Entranti</span><b>${fmt(m.inc[id] || 0)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>CO₂ t/g</span><b>${(m.co2[id] || 0).toFixed(2)}</b></div></div>`, style: this.ttStyle() }; }
     if (layer.id === 'conn') { const c = this.data.cells, mn = c.muni[object.id] ? (this.muniName[c.muni[object.id]] || '') : 'Area periurbana'; const kg = (g) => (g / 1000).toLocaleString('it-IT', { maximumFractionDigits: 0 }); return { html: `<div style="font-family:'Titillium Web',sans-serif;min-width:160px"><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;opacity:.6;margin-bottom:2px">${mn}</div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Verso il bacino</span><b>${fmt(this.cat.inMap[object.id] || 0)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Dal bacino</span><b>${fmt(this.cat.outMap[object.id] || 0)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px;opacity:.8"><span>CO₂ kg/g</span><b>${kg((this.cat.co2In[object.id] || 0) + (this.cat.co2Out[object.id] || 0))}</b></div></div>`, style: this.ttStyle() }; }
     if (layer.id === 'nevralgic') { const p = object; return { html: `<div style="font-family:'Titillium Web',sans-serif;max-width:220px"><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;opacity:.6;margin-bottom:3px">${p.tipologia}</div><div style="font-size:13px;font-weight:700;margin-bottom:5px">${p.nome}</div><div style="font-size:11px;opacity:.85;line-height:1.4">${p.note}</div><div style="font-size:10px;opacity:.5;margin-top:4px">Raggio bacino: ${p.raggio_cattura_km} km · clicca per analizzare</div></div>`, style: this.ttStyle() }; }
     return null;
@@ -224,12 +231,10 @@ export default class App extends React.Component {
   setAuto() { this.setState((s) => ({ heatColors: { ...s.heatColors, [s.metric]: null } }), () => this.refresh()); }
   setTab(t) { this.setState({ tab: t }); }
   setDir(d) { this.setState({ catchDir: d }, () => this.refresh()); }
+  toggleDir(which) { const d = this.state.catchDir; if (which === 'in') { if (d === 'out') this.setDir('both'); else if (d === 'both') this.setDir('out'); } else { if (d === 'in') this.setDir('both'); else if (d === 'both') this.setDir('in'); } }
   toggleCo2() { this.setState((s) => ({ catchCo2: !s.catchCo2 }), () => this.refresh()); }
   setBasemapVal(v) { this.setState({ basemap: v }); if (this.map) { this.map.setStyle(this.STYLES[v]); this.map.once('styledata', () => setTimeout(() => { this.updateLayers(); this.updateLegend(); }, 120)); } }
   setFilterVal(v) { v = +v; this.setState({ filterMuni: v }, () => this.refresh()); if (this.map) { if (v && this.muniBbox[v]) { const b = this.muniBbox[v]; this.map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 60, duration: 700 }); } else this.map.flyTo({ center: [12.52, 41.9], zoom: 9.3, duration: 700 }); } }
-  setHourStart(v) { v = +v; this.setState((s) => ({ hourStart: v, hourEnd: Math.max(v, s.hourEnd) }), () => this.refresh()); }
-  setHourEnd(v) { v = +v; this.setState((s) => ({ hourEnd: v, hourStart: Math.min(v, s.hourStart) }), () => this.refresh()); }
-  toggleTime() { this.setState((s) => ({ timeEnabled: !s.timeEnabled }), () => this.refresh()); }
 
   nearestName(lat, lng) { const c = this.data.cells; let mn = 0, bd = 1e9; for (let id = 1; id <= c.maxId; id++) { if (!c.h3[id]) continue; const d = this.hav(lat, lng, c.lat[id], c.lng[id]); if (d < bd) { bd = d; mn = c.muni[id]; } } return mn ? (this.muniName[mn] || 'Punto selezionato') : 'Area periurbana'; }
   setPoint(lng, lat, name) { this._ptName = name || this.nearestName(lat, lng); this.setState({ hasPoint: true, ptLng: lng, ptLat: lat, mode: 'catchment', catchMode: 'radius', areaLevel: '', tab: 'catchment' }, () => { this.computeCatchment(); this.refresh(); }); }
@@ -266,14 +271,13 @@ export default class App extends React.Component {
 
   viewModel() {
     const s = this.state, P = this.data && this.data.panels, fmt = (n) => Math.round(n).toLocaleString('it-IT');
-    const tf = this.timeFactor(), pad = (h) => String(h).padStart(2, '0');
     const kg = (g) => Math.round(g / 1000).toLocaleString('it-IT'), tonn = (g) => (g / 1e6).toLocaleString('it-IT', { maximumFractionDigits: 1 });
     let legendTitle, legendMax, legendMin = '0', legendUnit;
     if (s.mode === 'catchment' && this.cat) {
       const dirTxt = s.catchDir === 'in' ? 'origine' : s.catchDir === 'out' ? 'destinazione' : 'entrata ↔ uscita';
       if (s.catchDir === 'both' && !s.catchCo2) { legendTitle = 'Bacino · entrata ↔ uscita'; legendMin = 'entrata'; legendMax = 'uscita'; legendUnit = ''; }
       else { legendTitle = (s.catchCo2 ? 'CO₂ bacino · ' : 'Bacino · ') + dirTxt; legendMax = this.connInfo ? (s.catchCo2 ? kg(this.connInfo.vmax) : fmt(this.connInfo.vmax)) : '—'; legendUnit = s.catchCo2 ? 'kg/g' : 'viaggi/g'; }
-    } else { legendTitle = this.METRIC_LABEL[s.metric] + (s.timeEnabled ? ` · ${pad(s.hourStart)}–${pad(s.hourEnd)}` : ''); legendMax = this.vmax ? fmt((this.vmax[s.metric] || 0) * tf) : '—'; legendUnit = s.metric === 'co2' ? 't/g' : 'viaggi/g'; }
+    } else { legendTitle = this.METRIC_LABEL[s.metric]; legendMax = this.vmax ? fmt(this.vmax[s.metric] || 0) : '—'; legendUnit = s.metric === 'co2' ? 't/g' : 'viaggi/g'; }
     const zoneAll = this.data ? this.data.zone : [];
     const zoneFiltered = s.areaMuni ? zoneAll.filter((z) => z.muni === s.areaMuni) : zoneAll;
     const v = {
@@ -282,9 +286,6 @@ export default class App extends React.Component {
       heatModeName: s.heatColors[s.metric] ? 'Personalizzato' : 'Automatico',
       heatColorValue: s.heatColors[s.metric] || (s.metric === 'out' ? '#003366' : s.metric === 'inc' ? '#089994' : '#cc7a00'),
       metricLabelShort: this.metricShort[s.metric],
-      hourStartLabel: pad(s.hourStart) + ':00', hourEndLabel: pad(s.hourEnd) + ':59',
-      hourRangeLabel: s.timeEnabled ? `${pad(s.hourStart)}:00 – ${pad(s.hourEnd)}:59` : 'Intera giornata',
-      hourShare: s.timeEnabled ? `≈ ${(tf * 100).toFixed(0)}% dei viaggi` : '100% dei viaggi',
       zoneOptions: zoneFiltered.map((z) => ({ id: z.id, label: z.name + ' · ' + z.tipo + (z.muni ? ' (Mun. ' + (this.muniName[z.muni] || '').replace('Municipio Roma ', '') + ')' : '') })),
       zoneCount: zoneFiltered.length,
       frazOptions: this.data ? this.data.frazioni.map((f, i) => ({ id: i, name: f.name })) : [], frazCount: this.data ? this.data.frazioni.length : 0,
@@ -367,16 +368,13 @@ export default class App extends React.Component {
             onSetAuto={() => this.setAuto()}
             onBasemap={(v) => this.setBasemapVal(v)}
             onFilter={(v) => this.setFilterVal(v)}
-            onToggleTime={() => this.toggleTime()}
-            onHourStart={(v) => this.setHourStart(v)}
-            onHourEnd={(v) => this.setHourEnd(v)}
             onSetCatchMode={(m) => this.setCatchMode(m)}
             onSetAreaLevel={(v) => this.setAreaLevel(v)}
             onSetAreaMuni={(v) => this.setAreaMuni(v)}
             onSetAreaZone={(v) => this.setAreaZone(v)}
             onSetFraz={(v) => this.setFraz(v)}
             onSetRadius={(v) => this.setRadius(v)}
-            onSetDir={(d) => this.setDir(d)}
+            onToggleDir={(w) => this.toggleDir(w)}
             onToggleCo2={() => this.toggleCo2()}
             onClearPoint={() => this.clearPoint()}
             onNevralgico={(p) => this.setNevralgicPoint(p)}

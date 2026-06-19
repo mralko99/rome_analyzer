@@ -1,0 +1,1208 @@
+[
+ {
+  "etichetta": "Acilia",
+  "id_zona": [
+   1,
+   99
+  ],
+  "nome_zona": [
+   "Acilia Nord",
+   "Acilia Sud"
+  ],
+  "lng": 12.367762,
+  "lat": 41.780155
+ },
+ {
+  "etichetta": "Acqua Vergine",
+  "id_zona": [
+   3
+  ],
+  "nome_zona": [
+   "Acqua Vergine"
+  ],
+  "lng": 12.634096,
+  "lat": 41.908505
+ },
+ {
+  "etichetta": "Aeroporto di Ciampino",
+  "id_zona": [
+   91
+  ],
+  "nome_zona": [
+   "Aeroporto di Ciampino"
+  ],
+  "lng": 12.580895,
+  "lat": 41.80652
+ },
+ {
+  "etichetta": "Alessandrino",
+  "id_zona": [
+   43
+  ],
+  "nome_zona": [
+   "Alessandrino"
+  ],
+  "lng": 12.582518,
+  "lat": 41.8815
+ },
+ {
+  "etichetta": "Appio Claudio",
+  "id_zona": [
+   74
+  ],
+  "nome_zona": [
+   "Appio Claudio"
+  ],
+  "lng": 12.563202,
+  "lat": 41.842345
+ },
+ {
+  "etichetta": "Appio Pignatelli",
+  "id_zona": [
+   86
+  ],
+  "nome_zona": [
+   "Appio Pignatelli"
+  ],
+  "lng": 12.538591,
+  "lat": 41.847525
+ },
+ {
+  "etichetta": "Appio-Latino",
+  "id_zona": [
+   10
+  ],
+  "nome_zona": [
+   "Appio-Latino"
+  ],
+  "lng": 12.51657,
+  "lat": 41.867745
+ },
+ {
+  "etichetta": "Ardeatino",
+  "id_zona": [
+   9
+  ],
+  "nome_zona": [
+   "Ardeatino"
+  ],
+  "lng": 12.503629,
+  "lat": 41.849235
+ },
+ {
+  "etichetta": "Aurelio",
+  "id_zona": [
+   7,
+   22
+  ],
+  "nome_zona": [
+   "Aurelio",
+   "Aurelio"
+  ],
+  "lng": 12.412702,
+  "lat": 41.899395
+ },
+ {
+  "etichetta": "Borghesiana",
+  "id_zona": [
+   85
+  ],
+  "nome_zona": [
+   "Borghesiana"
+  ],
+  "lng": 12.689303,
+  "lat": 41.8588
+ },
+ {
+  "etichetta": "Borgo",
+  "id_zona": [
+   73
+  ],
+  "nome_zona": [
+   "Borgo"
+  ],
+  "lng": 12.46329,
+  "lat": 41.90227
+ },
+ {
+  "etichetta": "Campitelli",
+  "id_zona": [
+   42
+  ],
+  "nome_zona": [
+   "Campitelli"
+  ],
+  "lng": 12.487596,
+  "lat": 41.89035
+ },
+ {
+  "etichetta": "Campo Marzio",
+  "id_zona": [
+   75
+  ],
+  "nome_zona": [
+   "Campo Marzio"
+  ],
+  "lng": 12.480163,
+  "lat": 41.906955
+ },
+ {
+  "etichetta": "Capannelle",
+  "id_zona": [
+   108
+  ],
+  "nome_zona": [
+   "Capannelle"
+  ],
+  "lng": 12.57654,
+  "lat": 41.83046
+ },
+ {
+  "etichetta": "Casal Boccone",
+  "id_zona": [
+   28
+  ],
+  "nome_zona": [
+   "Casal Boccone"
+  ],
+  "lng": 12.556238,
+  "lat": 41.96052
+ },
+ {
+  "etichetta": "Casal Morena",
+  "id_zona": [
+   5
+  ],
+  "nome_zona": [
+   "Casal Morena"
+  ],
+  "lng": 12.614383,
+  "lat": 41.815535
+ },
+ {
+  "etichetta": "Casal Palocco",
+  "id_zona": [
+   51
+  ],
+  "nome_zona": [
+   "Casal Palocco"
+  ],
+  "lng": 12.334348,
+  "lat": 41.75455
+ },
+ {
+  "etichetta": "Casalotti",
+  "id_zona": [
+   37
+  ],
+  "nome_zona": [
+   "Casalotti"
+  ],
+  "lng": 12.353233,
+  "lat": 41.934655
+ },
+ {
+  "etichetta": "Castel Fusano",
+  "id_zona": [
+   33
+  ],
+  "nome_zona": [
+   "Castel Fusano"
+  ],
+  "lng": 12.362413,
+  "lat": 41.73313
+ },
+ {
+  "etichetta": "Castel Giubileo",
+  "id_zona": [
+   111
+  ],
+  "nome_zona": [
+   "Castel Giubileo"
+  ],
+  "lng": 12.52328,
+  "lat": 41.974775
+ },
+ {
+  "etichetta": "Castel Porziano",
+  "id_zona": [
+   71
+  ],
+  "nome_zona": [
+   "Castel Porziano"
+  ],
+  "lng": 12.412344,
+  "lat": 41.718505
+ },
+ {
+  "etichetta": "Castel di Decima",
+  "id_zona": [
+   34
+  ],
+  "nome_zona": [
+   "Castel di Decima"
+  ],
+  "lng": 12.46824,
+  "lat": 41.731785
+ },
+ {
+  "etichetta": "Castel di Guido",
+  "id_zona": [
+   36
+  ],
+  "nome_zona": [
+   "Castel di Guido"
+  ],
+  "lng": 12.301047,
+  "lat": 41.90083
+ },
+ {
+  "etichetta": "Castel di Leva",
+  "id_zona": [
+   112
+  ],
+  "nome_zona": [
+   "Castel di Leva"
+  ],
+  "lng": 12.545123,
+  "lat": 41.749835
+ },
+ {
+  "etichetta": "Castro Pretorio",
+  "id_zona": [
+   29
+  ],
+  "nome_zona": [
+   "Castro Pretorio"
+  ],
+  "lng": 12.500014,
+  "lat": 41.903515
+ },
+ {
+  "etichetta": "Cecchignola",
+  "id_zona": [
+   48
+  ],
+  "nome_zona": [
+   "Cecchignola"
+  ],
+  "lng": 12.523809,
+  "lat": 41.81074
+ },
+ {
+  "etichetta": "Celio",
+  "id_zona": [
+   50
+  ],
+  "nome_zona": [
+   "Celio"
+  ],
+  "lng": 12.495923,
+  "lat": 41.882335
+ },
+ {
+  "etichetta": "Cesano",
+  "id_zona": [
+   113
+  ],
+  "nome_zona": [
+   "Cesano"
+  ],
+  "lng": 12.343404,
+  "lat": 42.06754
+ },
+ {
+  "etichetta": "Città del Vaticano",
+  "id_zona": [
+   54
+  ],
+  "nome_zona": [
+   "Stato Citta' Del Vaticano"
+  ],
+  "lng": 12.453226,
+  "lat": 41.903895
+ },
+ {
+  "etichetta": "Collatino",
+  "id_zona": [
+   16
+  ],
+  "nome_zona": [
+   "Collatino"
+  ],
+  "lng": 12.554009,
+  "lat": 41.90692
+ },
+ {
+  "etichetta": "Colonna",
+  "id_zona": [
+   95
+  ],
+  "nome_zona": [
+   "Colonna"
+  ],
+  "lng": 12.479591,
+  "lat": 41.902325
+ },
+ {
+  "etichetta": "Della Vittoria",
+  "id_zona": [
+   64,
+   102
+  ],
+  "nome_zona": [
+   "Della Vittoria",
+   "Della Vittoria"
+  ],
+  "lng": 12.448961,
+  "lat": 41.93627
+ },
+ {
+  "etichetta": "Don Bosco",
+  "id_zona": [
+   18
+  ],
+  "nome_zona": [
+   "Don Bosco"
+  ],
+  "lng": 12.571245,
+  "lat": 41.862955
+ },
+ {
+  "etichetta": "Esquilino",
+  "id_zona": [
+   76
+  ],
+  "nome_zona": [
+   "Esquilino"
+  ],
+  "lng": 12.507007,
+  "lat": 41.8945
+ },
+ {
+  "etichetta": "Europa",
+  "id_zona": [
+   97
+  ],
+  "nome_zona": [
+   "Europa"
+  ],
+  "lng": 12.465713,
+  "lat": 41.83035
+ },
+ {
+  "etichetta": "Flaminio",
+  "id_zona": [
+   17
+  ],
+  "nome_zona": [
+   "Flaminio"
+  ],
+  "lng": 12.466995,
+  "lat": 41.923185
+ },
+ {
+  "etichetta": "Fonte Ostiense",
+  "id_zona": [
+   47
+  ],
+  "nome_zona": [
+   "Fonte Ostiense"
+  ],
+  "lng": 12.471101,
+  "lat": 41.80891
+ },
+ {
+  "etichetta": "Gianicolense",
+  "id_zona": [
+   8,
+   15
+  ],
+  "nome_zona": [
+   "Gianicolense",
+   "Gianicolense"
+  ],
+  "lng": 12.424646,
+  "lat": 41.867345
+ },
+ {
+  "etichetta": "Giuliano Dalmata",
+  "id_zona": [
+   56
+  ],
+  "nome_zona": [
+   "Giuliano Dalmata"
+  ],
+  "lng": 12.499294,
+  "lat": 41.81147
+ },
+ {
+  "etichetta": "Grottarossa",
+  "id_zona": [
+   103
+  ],
+  "nome_zona": [
+   "Grottarossa"
+  ],
+  "lng": 12.481282,
+  "lat": 41.97079
+ },
+ {
+  "etichetta": "Isola Farnese",
+  "id_zona": [
+   114
+  ],
+  "nome_zona": [
+   "Isola Farnese"
+  ],
+  "lng": 12.399639,
+  "lat": 42.02823
+ },
+ {
+  "etichetta": "La Giustiniana",
+  "id_zona": [
+   26
+  ],
+  "nome_zona": [
+   "La Giustiniana"
+  ],
+  "lng": 12.42181,
+  "lat": 41.989465
+ },
+ {
+  "etichetta": "La Pisana",
+  "id_zona": [
+   0
+  ],
+  "nome_zona": [
+   "La Pisana"
+  ],
+  "lng": 12.385061,
+  "lat": 41.859325
+ },
+ {
+  "etichetta": "La Storta",
+  "id_zona": [
+   60
+  ],
+  "nome_zona": [
+   "La Storta"
+  ],
+  "lng": 12.37237,
+  "lat": 42.01019
+ },
+ {
+  "etichetta": "Labaro",
+  "id_zona": [
+   38
+  ],
+  "nome_zona": [
+   "Labaro"
+  ],
+  "lng": 12.475985,
+  "lat": 41.99459
+ },
+ {
+  "etichetta": "Lido di Castel Fusano",
+  "id_zona": [
+   31
+  ],
+  "nome_zona": [
+   "Lido di Castel Fusano"
+  ],
+  "lng": 12.322805,
+  "lat": 41.716665
+ },
+ {
+  "etichetta": "Lido di Ostia",
+  "id_zona": [
+   81,
+   82
+  ],
+  "nome_zona": [
+   "Lido di Ostia Levante",
+   "Lido di Ostia Ponente"
+  ],
+  "lng": 12.276886,
+  "lat": 41.73568
+ },
+ {
+  "etichetta": "Ludovisi",
+  "id_zona": [
+   45
+  ],
+  "nome_zona": [
+   "Ludovisi"
+  ],
+  "lng": 12.489415,
+  "lat": 41.90753
+ },
+ {
+  "etichetta": "Lunghezza",
+  "id_zona": [
+   39
+  ],
+  "nome_zona": [
+   "Lunghezza"
+  ],
+  "lng": 12.680104,
+  "lat": 41.91289
+ },
+ {
+  "etichetta": "Maccarese",
+  "id_zona": [
+   49
+  ],
+  "nome_zona": [
+   "Maccarese Nord"
+  ],
+  "lng": 12.248717,
+  "lat": 41.8779
+ },
+ {
+  "etichetta": "Magliana Vecchia",
+  "id_zona": [
+   53
+  ],
+  "nome_zona": [
+   "Magliana Vecchia"
+  ],
+  "lng": 12.404581,
+  "lat": 41.825735
+ },
+ {
+  "etichetta": "Marcigliana",
+  "id_zona": [
+   116
+  ],
+  "nome_zona": [
+   "Marcigliana"
+  ],
+  "lng": 12.566377,
+  "lat": 42.0248
+ },
+ {
+  "etichetta": "Mezzocammino",
+  "id_zona": [
+   20
+  ],
+  "nome_zona": [
+   "Mezzocammino"
+  ],
+  "lng": 12.416818,
+  "lat": 41.79578
+ },
+ {
+  "etichetta": "Monte Sacro",
+  "id_zona": [
+   66,
+   90
+  ],
+  "nome_zona": [
+   "Monte Sacro",
+   "Monte Sacro Alto"
+  ],
+  "lng": 12.533692,
+  "lat": 41.940185
+ },
+ {
+  "etichetta": "Monti",
+  "id_zona": [
+   67
+  ],
+  "nome_zona": [
+   "Monti"
+  ],
+  "lng": 12.495621,
+  "lat": 41.89201
+ },
+ {
+  "etichetta": "Nomentano",
+  "id_zona": [
+   62
+  ],
+  "nome_zona": [
+   "Nomentano"
+  ],
+  "lng": 12.519797,
+  "lat": 41.916495
+ },
+ {
+  "etichetta": "Ostia Antica",
+  "id_zona": [
+   65
+  ],
+  "nome_zona": [
+   "Ostia Antica"
+  ],
+  "lng": 12.302966,
+  "lat": 41.77317
+ },
+ {
+  "etichetta": "Ostiense",
+  "id_zona": [
+   61
+  ],
+  "nome_zona": [
+   "Ostiense"
+  ],
+  "lng": 12.478283,
+  "lat": 41.857795
+ },
+ {
+  "etichetta": "Ottavia",
+  "id_zona": [
+   96
+  ],
+  "nome_zona": [
+   "Ottavia"
+  ],
+  "lng": 12.389729,
+  "lat": 41.950935
+ },
+ {
+  "etichetta": "Parioli",
+  "id_zona": [
+   55
+  ],
+  "nome_zona": [
+   "Parioli"
+  ],
+  "lng": 12.488645,
+  "lat": 41.931
+ },
+ {
+  "etichetta": "Parione",
+  "id_zona": [
+   30
+  ],
+  "nome_zona": [
+   "Parione"
+  ],
+  "lng": 12.471042,
+  "lat": 41.897405
+ },
+ {
+  "etichetta": "Pietralata",
+  "id_zona": [
+   32
+  ],
+  "nome_zona": [
+   "Pietralata"
+  ],
+  "lng": 12.546586,
+  "lat": 41.92079
+ },
+ {
+  "etichetta": "Pigna",
+  "id_zona": [
+   106
+  ],
+  "nome_zona": [
+   "Pigna"
+  ],
+  "lng": 12.479203,
+  "lat": 41.89708
+ },
+ {
+  "etichetta": "Pinciano",
+  "id_zona": [
+   109
+  ],
+  "nome_zona": [
+   "Pinciano"
+  ],
+  "lng": 12.485375,
+  "lat": 41.91876
+ },
+ {
+  "etichetta": "Polline Martignano",
+  "id_zona": [
+   19
+  ],
+  "nome_zona": [
+   "Polline Martignano"
+  ],
+  "lng": 12.309746,
+  "lat": 42.12218
+ },
+ {
+  "etichetta": "Ponte",
+  "id_zona": [
+   87
+  ],
+  "nome_zona": [
+   "Ponte"
+  ],
+  "lng": 12.467902,
+  "lat": 41.89999
+ },
+ {
+  "etichetta": "Ponte Galeria",
+  "id_zona": [
+   35
+  ],
+  "nome_zona": [
+   "Ponte Galeria"
+  ],
+  "lng": 12.342227,
+  "lat": 41.82396
+ },
+ {
+  "etichetta": "Ponte Mammolo",
+  "id_zona": [
+   63
+  ],
+  "nome_zona": [
+   "Ponte Mammolo"
+  ],
+  "lng": 12.566001,
+  "lat": 41.932465
+ },
+ {
+  "etichetta": "Portuense",
+  "id_zona": [
+   89,
+   100
+  ],
+  "nome_zona": [
+   "Portuense",
+   "Portuense"
+  ],
+  "lng": 12.452107,
+  "lat": 41.85494
+ },
+ {
+  "etichetta": "Prati",
+  "id_zona": [
+   77
+  ],
+  "nome_zona": [
+   "Prati"
+  ],
+  "lng": 12.464364,
+  "lat": 41.90834
+ },
+ {
+  "etichetta": "Prenestino-Centocelle",
+  "id_zona": [
+   12
+  ],
+  "nome_zona": [
+   "Prenestino-Centocelle"
+  ],
+  "lng": 12.567235,
+  "lat": 41.884935
+ },
+ {
+  "etichetta": "Prenestino-Labicano",
+  "id_zona": [
+   59
+  ],
+  "nome_zona": [
+   "Prenestino-Labicano"
+  ],
+  "lng": 12.545282,
+  "lat": 41.885225
+ },
+ {
+  "etichetta": "Prima Porta",
+  "id_zona": [
+   115
+  ],
+  "nome_zona": [
+   "Prima Porta"
+  ],
+  "lng": 12.47179,
+  "lat": 42.035415
+ },
+ {
+  "etichetta": "Primavalle",
+  "id_zona": [
+   101
+  ],
+  "nome_zona": [
+   "Primavalle"
+  ],
+  "lng": 12.417118,
+  "lat": 41.92154
+ },
+ {
+  "etichetta": "Regola",
+  "id_zona": [
+   13
+  ],
+  "nome_zona": [
+   "Regola"
+  ],
+  "lng": 12.47094,
+  "lat": 41.894405
+ },
+ {
+  "etichetta": "Ripa",
+  "id_zona": [
+   105
+  ],
+  "nome_zona": [
+   "Ripa"
+  ],
+  "lng": 12.483128,
+  "lat": 41.88517
+ },
+ {
+  "etichetta": "Salario",
+  "id_zona": [
+   11
+  ],
+  "nome_zona": [
+   "Salario"
+  ],
+  "lng": 12.500994,
+  "lat": 41.914545
+ },
+ {
+  "etichetta": "Sallustiano",
+  "id_zona": [
+   70
+  ],
+  "nome_zona": [
+   "Sallustiano"
+  ],
+  "lng": 12.495676,
+  "lat": 41.907765
+ },
+ {
+  "etichetta": "San Basilio",
+  "id_zona": [
+   24
+  ],
+  "nome_zona": [
+   "S. Basilio"
+  ],
+  "lng": 12.580236,
+  "lat": 41.94491
+ },
+ {
+  "etichetta": "San Saba",
+  "id_zona": [
+   110
+  ],
+  "nome_zona": [
+   "S. Saba"
+  ],
+  "lng": 12.488431,
+  "lat": 41.87905
+ },
+ {
+  "etichetta": "San Vittorino",
+  "id_zona": [
+   40
+  ],
+  "nome_zona": [
+   "S. Vittorino"
+  ],
+  "lng": 12.730612,
+  "lat": 41.90255
+ },
+ {
+  "etichetta": "Sant'Angelo",
+  "id_zona": [
+   92
+  ],
+  "nome_zona": [
+   "S. Angelo"
+  ],
+  "lng": 12.478356,
+  "lat": 41.89282
+ },
+ {
+  "etichetta": "Sant'Eustachio",
+  "id_zona": [
+   104
+  ],
+  "nome_zona": [
+   "S. Eustachio"
+  ],
+  "lng": 12.475276,
+  "lat": 41.89744
+ },
+ {
+  "etichetta": "Santa Maria di Galeria",
+  "id_zona": [
+   68
+  ],
+  "nome_zona": [
+   "S. Maria di Galeria"
+  ],
+  "lng": 12.286404,
+  "lat": 42.00224
+ },
+ {
+  "etichetta": "Settecamini",
+  "id_zona": [
+   84
+  ],
+  "nome_zona": [
+   "Settecamini"
+  ],
+  "lng": 12.61859,
+  "lat": 41.94491
+ },
+ {
+  "etichetta": "Testaccio",
+  "id_zona": [
+   46
+  ],
+  "nome_zona": [
+   "Testaccio"
+  ],
+  "lng": 12.474775,
+  "lat": 41.87798
+ },
+ {
+  "etichetta": "Tiburtino",
+  "id_zona": [
+   80
+  ],
+  "nome_zona": [
+   "Tiburtino"
+  ],
+  "lng": 12.523142,
+  "lat": 41.89978
+ },
+ {
+  "etichetta": "Tomba di Nerone",
+  "id_zona": [
+   6
+  ],
+  "nome_zona": [
+   "Tomba di Nerone"
+  ],
+  "lng": 12.429498,
+  "lat": 41.965615
+ },
+ {
+  "etichetta": "Tor Cervara",
+  "id_zona": [
+   27
+  ],
+  "nome_zona": [
+   "Tor Cervara"
+  ],
+  "lng": 12.591864,
+  "lat": 41.92052
+ },
+ {
+  "etichetta": "Tor San Giovanni",
+  "id_zona": [
+   83
+  ],
+  "nome_zona": [
+   "Tor S. Giovanni"
+  ],
+  "lng": 12.58455,
+  "lat": 41.986365
+ },
+ {
+  "etichetta": "Tor Sapienza",
+  "id_zona": [
+   2
+  ],
+  "nome_zona": [
+   "Tor Sapienza"
+  ],
+  "lng": 12.594501,
+  "lat": 41.90616
+ },
+ {
+  "etichetta": "Tor de' Cenci",
+  "id_zona": [
+   72
+  ],
+  "nome_zona": [
+   "Tor de' Cenci"
+  ],
+  "lng": 12.429097,
+  "lat": 41.78507
+ },
+ {
+  "etichetta": "Tor di Quinto",
+  "id_zona": [
+   78,
+   93
+  ],
+  "nome_zona": [
+   "Tor di Quinto",
+   "Tor di Quinto"
+  ],
+  "lng": 12.479364,
+  "lat": 41.95012
+ },
+ {
+  "etichetta": "Tor di Valle",
+  "id_zona": [
+   94
+  ],
+  "nome_zona": [
+   "Tor di Valle"
+  ],
+  "lng": 12.429033,
+  "lat": 41.820245
+ },
+ {
+  "etichetta": "Torre Angela",
+  "id_zona": [
+   41
+  ],
+  "nome_zona": [
+   "Torre Angela"
+  ],
+  "lng": 12.640594,
+  "lat": 41.877815
+ },
+ {
+  "etichetta": "Torre Gaia",
+  "id_zona": [
+   107
+  ],
+  "nome_zona": [
+   "Torre Gaia"
+  ],
+  "lng": 12.636743,
+  "lat": 41.840125
+ },
+ {
+  "etichetta": "Torre Maura",
+  "id_zona": [
+   69
+  ],
+  "nome_zona": [
+   "Torre Maura"
+  ],
+  "lng": 12.591132,
+  "lat": 41.854035
+ },
+ {
+  "etichetta": "Torre Spaccata",
+  "id_zona": [
+   52
+  ],
+  "nome_zona": [
+   "Torre Spaccata"
+  ],
+  "lng": 12.600308,
+  "lat": 41.87954
+ },
+ {
+  "etichetta": "Torrenova",
+  "id_zona": [
+   4
+  ],
+  "nome_zona": [
+   "Torrenova"
+  ],
+  "lng": 12.609378,
+  "lat": 41.84749
+ },
+ {
+  "etichetta": "Torricola",
+  "id_zona": [
+   44
+  ],
+  "nome_zona": [
+   "Torricola"
+  ],
+  "lng": 12.552991,
+  "lat": 41.81836
+ },
+ {
+  "etichetta": "Torrino",
+  "id_zona": [
+   57
+  ],
+  "nome_zona": [
+   "Torrino"
+  ],
+  "lng": 12.446283,
+  "lat": 41.81579
+ },
+ {
+  "etichetta": "Trastevere",
+  "id_zona": [
+   98
+  ],
+  "nome_zona": [
+   "Trastevere"
+  ],
+  "lng": 12.466597,
+  "lat": 41.89126
+ },
+ {
+  "etichetta": "Trevi",
+  "id_zona": [
+   25
+  ],
+  "nome_zona": [
+   "Trevi"
+  ],
+  "lng": 12.485276,
+  "lat": 41.90059
+ },
+ {
+  "etichetta": "Trieste",
+  "id_zona": [
+   21
+  ],
+  "nome_zona": [
+   "Trieste"
+  ],
+  "lng": 12.515907,
+  "lat": 41.92797
+ },
+ {
+  "etichetta": "Trionfale",
+  "id_zona": [
+   14,
+   23
+  ],
+  "nome_zona": [
+   "Trionfale",
+   "Trionfale"
+  ],
+  "lng": 12.400181,
+  "lat": 41.935535
+ },
+ {
+  "etichetta": "Tuscolano",
+  "id_zona": [
+   58
+  ],
+  "nome_zona": [
+   "Tuscolano"
+  ],
+  "lng": 12.539392,
+  "lat": 41.870225
+ },
+ {
+  "etichetta": "Val Melaina",
+  "id_zona": [
+   79
+  ],
+  "nome_zona": [
+   "Val Melaina"
+  ],
+  "lng": 12.512521,
+  "lat": 41.952165
+ },
+ {
+  "etichetta": "Vallerano",
+  "id_zona": [
+   88
+  ],
+  "nome_zona": [
+   "Vallerano"
+  ],
+  "lng": 12.464386,
+  "lat": 41.783205
+ }
+]

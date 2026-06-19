@@ -13,7 +13,7 @@ export default function SidePanel({
   onMetric, onToggle, onSetHeatColor, onSetAuto, onBasemap, onFilter,
   onToggleTime, onHourStart, onHourEnd,
   onSetCatchMode, onSetAreaLevel, onSetAreaMuni, onSetAreaZone, onSetFraz,
-  onSetRadius, onSetDir, onToggleCo2, onClearPoint, onNevralgico,
+  onSetRadius, onToggleDir, onToggleCo2, onClearPoint, onNevralgico,
 }) {
   return (
     <div ref={sidePanelRef} style={css('flex:none;width:404px;overflow:hidden;background:#fafafa;')}>
@@ -28,7 +28,7 @@ export default function SidePanel({
 
         <div style={css('flex:none;display:flex;gap:3px;padding:9px 12px;background:#fff;border-bottom:1px solid #ebeced;')}>
           <button onClick={() => onSetTab('settings')} style={tabStyle(s.tab === 'settings')}>Impostazioni</button>
-          <button onClick={() => onSetTab('catchment')} style={tabStyle(s.tab === 'catchment')}>Bacino</button>
+          <button onClick={() => onSetTab('catchment')} style={tabStyle(s.tab === 'catchment')}>Area</button>
           <button onClick={() => onSetTab('stats')} style={tabStyle(s.tab === 'stats')}>Statistiche</button>
         </div>
 
@@ -48,7 +48,7 @@ export default function SidePanel({
               onSetCatchMode={onSetCatchMode} onSetAreaLevel={onSetAreaLevel}
               onSetAreaMuni={onSetAreaMuni} onSetAreaZone={onSetAreaZone}
               onSetFraz={onSetFraz} onSetRadius={onSetRadius}
-              onSetDir={onSetDir} onToggleCo2={onToggleCo2}
+              onToggleDir={onToggleDir} onToggleCo2={onToggleCo2} onToggle={onToggle}
               onClearPoint={onClearPoint} onNevralgico={onNevralgico}
             />
           )}

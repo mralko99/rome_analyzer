@@ -1,16 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { css } from '../utils/css.js';
-import { segStyle, co2Pill } from '../utils/styles.js';
+import { segStyle, co2Pill, rowStyle, pill } from '../utils/styles.js';
 import RankList from './RankList.jsx';
 
-export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetAreaLevel, onSetAreaMuni, onSetAreaZone, onSetFraz, onSetRadius, onSetDir, onToggleCo2, onClearPoint, onNevralgico }) {
+export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetAreaLevel, onSetAreaMuni, onSetAreaZone, onSetFraz, onSetRadius, onToggleDir, onToggleCo2, onToggle, onClearPoint, onNevralgico }) {
+  const [poliOpen, setPoliOpen] = useState(true);
   return (
     <div style={css('padding:16px;display:flex;flex-direction:column;gap:16px;')}>
       <div style={css('font-size:12.5px;color:#5c6f82;line-height:1.45;')}>Da dove arrivano e dove vanno gli spostamenti di un'area, in modo <b style={{ color: '#17324d' }}>gerarchico</b>.</div>
+      <div style={css('display:flex;flex-direction:column;gap:8px;')}>
+        <button onClick={() => onToggle('heatmap')} style={rowStyle()}><span>Heatmap dati</span><span style={pill(s.heatmap)}>{s.heatmap ? 'ON' : 'OFF'}</span></button>
+        <button onClick={() => onToggle('grid')} style={rowStyle()}><span>Griglia H3</span><span style={pill(s.grid)}>{s.grid ? 'ON' : 'OFF'}</span></button>
+      </div>
       <div>
-        <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>Tipo di bacino</div>
+        <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>Tipologia selezione</div>
         <div style={css('display:flex;gap:5px;')}>
-          <button onClick={() => onSetCatchMode('radius')} style={segStyle(s.catchMode === 'radius')}>Raggio attorno a un punto</button>
+          <button onClick={() => onSetCatchMode('radius')} style={segStyle(s.catchMode === 'radius')}>Punto</button>
           <button onClick={() => onSetCatchMode('area')} style={segStyle(s.catchMode === 'area')}>Area amministrativa</button>
         </div>
       </div>
@@ -18,8 +23,17 @@ export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetA
       {s.catchMode === 'radius' && (
         <div style={css('display:flex;flex-direction:column;gap:16px;')}>
           <div>
-            <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>Poli di interesse</div>
-            <div style={css('display:flex;flex-direction:column;gap:5px;')}>
+            <div style={css('display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;')}>
+              <button onClick={() => setPoliOpen((o) => !o)} style={css('display:flex;align-items:center;gap:5px;background:none;border:none;padding:0;cursor:pointer;font-family:inherit;')}>
+                <span style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;')}>Poli di interesse</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#5c6f82" strokeWidth="2.5" style={{ transition: 'transform .2s', transform: poliOpen ? 'rotate(0deg)' : 'rotate(-90deg)' }}><polyline points="6 9 12 15 18 9" /></svg>
+              </button>
+              <button onClick={() => onToggle('showNevralgic')} title={s.showNevralgic ? 'Nascondi sulla mappa' : 'Mostra sulla mappa'} style={css(`display:flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:12px;border:1px solid ${s.showNevralgic ? '#089994' : '#c5c7c9'};background:${s.showNevralgic ? '#e6f7f7' : '#f2f2f2'};cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;color:${s.showNevralgic ? '#077f7b' : '#768594'};transition:all .15s;`)}>
+                <span style={css(`width:8px;height:8px;border-radius:50%;background:${s.showNevralgic ? '#089994' : '#c5c7c9'};transition:background .15s;`)} />
+                {s.showNevralgic ? 'ON' : 'OFF'}
+              </button>
+            </div>
+            {poliOpen && <div style={css('display:flex;flex-direction:column;gap:5px;')}>
               {v.puntiNevralgici.map((p) => {
                 const col = p.color;
                 const active = s.hasPoint && Math.abs(s.ptLat - p.latitudine) < 0.0001 && Math.abs(s.ptLng - p.longitudine) < 0.0001;
@@ -33,7 +47,7 @@ export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetA
                   </button>
                 );
               })}
-            </div>
+            </div>}
           </div>
           <div>
             <div style={css('display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;')}>
@@ -99,9 +113,8 @@ export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetA
           <button onClick={onToggleCo2} style={co2Pill(s.catchCo2)}>CO₂ {s.catchCo2 ? 'ON' : 'OFF'}</button>
         </div>
         <div style={css('display:flex;gap:5px;')}>
-          <button onClick={() => onSetDir('in')} style={segStyle(s.catchDir === 'in')}>Entrata</button>
-          <button onClick={() => onSetDir('out')} style={segStyle(s.catchDir === 'out')}>Uscita</button>
-          <button onClick={() => onSetDir('both')} style={segStyle(s.catchDir === 'both')}>Entrambi</button>
+          <button onClick={() => onToggleDir('in')} style={segStyle(s.catchDir !== 'out')}>Entrata</button>
+          <button onClick={() => onToggleDir('out')} style={segStyle(s.catchDir !== 'in')}>Uscita</button>
         </div>
         {s.catchDir === 'both' && !s.catchCo2 && (
           <>
