@@ -1,7 +1,8 @@
 import React from 'react';
 import { css } from '../utils/css.js';
+import RankList from './RankList.jsx';
 
-export default function StatsTab({ v }) {
+export default function StatsTab({ v, s, onClearPoint }) {
   const kpi = (label, val, color) => (
     <div style={css('background:#fff;padding:13px 14px;')}>
       <div style={css('font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#768594;')}>{label}</div>
@@ -11,6 +12,40 @@ export default function StatsTab({ v }) {
 
   return (
     <div>
+      {v.hasCatchment ? (
+        <div style={css('padding:14px 16px;border-bottom:1px solid #ebeced;display:flex;flex-direction:column;gap:14px;')}>
+          <div style={css('display:flex;align-items:center;justify-content:space-between;')}>
+            <div>
+              <div style={css('font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#089994;')}>{v.selKind}</div>
+              <div style={css('font-size:14px;font-weight:700;color:#003366;')}>{v.selName}</div>
+              <div style={css("font-size:11px;color:#929da9;font-family:'Roboto Mono',monospace;")}>{v.selSub}</div>
+            </div>
+            <button onClick={onClearPoint} style={css('height:28px;padding:0 11px;border:1px solid #ebeced;background:#fff;border-radius:4px;cursor:pointer;color:#5c6f82;font-family:inherit;font-size:12.5px;font-weight:600;')}>Azzera</button>
+          </div>
+          <div style={css('display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;')}>
+            <div style={css('background:#f6e4c8;border-radius:4px;padding:8px 10px;')}>
+              <div style={css('font-size:9px;color:#995c00;font-weight:600;letter-spacing:.03em;')}>{v.inLabel}</div>
+              <div style={css("font-family:'Lora',serif;font-size:18px;font-weight:600;color:#995c00;font-variant-numeric:tabular-nums;")}>{v.totIn}</div>
+            </div>
+            <div style={css('background:#ccfffd;border-radius:4px;padding:8px 10px;')}>
+              <div style={css('font-size:9px;color:#077f7b;font-weight:600;letter-spacing:.03em;')}>{v.outLabel}</div>
+              <div style={css("font-family:'Lora',serif;font-size:18px;font-weight:600;color:#05615e;font-variant-numeric:tabular-nums;")}>{v.totOut}</div>
+            </div>
+            <div style={css('background:#e8f7f1;border-radius:4px;padding:8px 10px;')}>
+              <div style={css('font-size:9px;color:#005c35;font-weight:600;letter-spacing:.03em;')}>INTERNI</div>
+              <div style={css("font-family:'Lora',serif;font-size:18px;font-weight:600;color:#005c35;font-variant-numeric:tabular-nums;")}>{v.totIntra}</div>
+            </div>
+          </div>
+          {s && s.catchCo2 && <div style={css('font-size:11px;color:#a3adb7;margin-top:-4px;line-height:1.35;')}>{v.intraNote}</div>}
+          <RankList title="Da dove arrivano" sub="origine" rows={v.topOrigins} color="#cc7a00" />
+          <RankList title="Dove vanno" sub="destinazione" rows={v.topDests} color="#089994" />
+        </div>
+      ) : (
+        <div style={css('padding:14px 16px;border-bottom:1px solid #ebeced;display:flex;gap:10px;align-items:flex-start;color:#5c6f82;')}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5c6f82" strokeWidth="2" style={{ flex: 'none', marginTop: '1px' }}><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /><circle cx="12" cy="12" r="4" /></svg>
+          <span style={css('font-size:12.5px;line-height:1.4;')}>Seleziona un bacino nel tab Area per vedere le statistiche di flusso.</span>
+        </div>
+      )}
       <div style={css('display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:#ebeced;border-bottom:1px solid #ebeced;')}>
         {kpi('Spostamenti/g', v.kpiTrips, '#003366')}
         {kpi('CO₂ t/g', v.kpiCo2, '#cc7a00')}

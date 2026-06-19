@@ -49,10 +49,10 @@ export default function SidePanel({
               onSetAreaMuni={onSetAreaMuni} onSetAreaZone={onSetAreaZone}
               onSetFraz={onSetFraz} onSetRadius={onSetRadius}
               onToggleDir={onToggleDir} onToggleCo2={onToggleCo2} onToggle={onToggle}
-              onClearPoint={onClearPoint} onNevralgico={onNevralgico}
+              onNevralgico={onNevralgico}
             />
           )}
-          {s.tab === 'stats' && <StatsTab v={v} />}
+          {s.tab === 'stats' && <StatsTab v={v} s={s} onClearPoint={onClearPoint} />}
         </div>
       </div>
     </div>

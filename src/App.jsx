@@ -17,9 +17,9 @@ export default class App extends React.Component {
       mode: 'city', metric: 'out',
       heatmap: true, grid: true, showMuniBounds: true, showMuniLabels: true, showQuartieriBounds: false, showQuartieriLabels: false, showNevralgic: true, showFrazioni: false,
       basemap: 'positron', filterMuni: 0,
-      heatColors: { out: null, inc: null, co2: null },
+      heatColors: { out: null, inc: null, co2: null, internal: null },
       panelOpen: true, tab: 'settings',
-      catchMode: 'radius', catchDir: 'in', catchCo2: false, radiusKm: 0.6,
+      catchMode: 'radius', catchFlags: { in: true, out: false, internal: false }, catchCo2: false, radiusKm: 0.6,
       areaLevel: '', areaMuni: 0, areaZone: -1, frazId: -1,
       hasPoint: false, ptLng: 0, ptLat: 0,
     };
@@ -27,9 +27,16 @@ export default class App extends React.Component {
       navy: [[219,234,254],[147,196,245],[67,146,224],[0,77,153],[0,40,80]],
       teal: [[204,255,253],[121,236,232],[11,203,197],[7,127,123],[4,70,68]],
       ambra: [[248,232,205],[238,182,110],[224,140,67],[204,80,55],[150,25,38]],
+      green: [[232,247,241],[147,217,187],[0,128,85],[0,92,61],[0,56,39]],
     };
-    this.metricRamp = { out: 'navy', inc: 'teal', co2: 'ambra' };
-    this.metricShort = { out: 'Uscenti', inc: 'Entranti', co2: 'CO₂' };
+    this.METRIC_DEFAULT_STOPS = {
+      out: [{ pos: 0, hex: '#dbeafe' }, { pos: 1, hex: '#002850' }],
+      inc: [{ pos: 0, hex: '#ccfffd' }, { pos: 1, hex: '#044644' }],
+      co2: [{ pos: 0, hex: '#f8e8cd' }, { pos: 1, hex: '#961926' }],
+      internal: [{ pos: 0, hex: '#e8f7f1' }, { pos: 1, hex: '#003827' }],
+    };
+    this.metricRamp = { out: 'navy', inc: 'teal', co2: 'ambra', internal: 'green' };
+    this.metricShort = { out: 'Uscenti', inc: 'Entranti', co2: 'CO₂', internal: 'Interno' };
     this.SWATCHES = ['#81ecec', '#ff7675', '#0984e3', '#00b894', '#fdcb6e'];
     this.EF = 117;
 
@@ -38,7 +45,7 @@ export default class App extends React.Component {
       voyager: 'https://basemaps.cartocdn.com/gl/voyager-nolabels-gl-style/style.json',
       dark: 'https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json',
     };
-    this.METRIC_LABEL = { out: 'Spostamenti uscenti', inc: 'Spostamenti entranti', co2: 'Emissioni CO₂' };
+    this.METRIC_LABEL = { out: 'Spostamenti uscenti', inc: 'Spostamenti entranti', co2: 'Emissioni CO₂', internal: 'Spostamenti interni' };
   }
 
   // ---------- geo helpers ----------
@@ -70,8 +77,8 @@ export default class App extends React.Component {
       this.od = new Uint16Array(bytes.buffer); this.odN = this.od.length / 3;
       const hex = []; for (let id = 1; id <= cells.maxId; id++) if (cells.h3[id]) hex.push({ id, h3: cells.h3[id] });
       this.hexData = hex;
-      this.vmax = { out: 0, inc: 0, co2: 0 };
-      for (const k of ['out', 'inc', 'co2']) { const a = metrics[k]; let mx = 0; for (let i = 1; i < a.length; i++) if (a[i] > mx) mx = a[i]; this.vmax[k] = mx; }
+      this.vmax = { out: 0, inc: 0, co2: 0, internal: 0 };
+      for (const k of ['out', 'inc', 'co2', 'internal']) { const a = metrics[k]; let mx = 0; for (let i = 1; i < a.length; i++) if (a[i] > mx) mx = a[i]; this.vmax[k] = mx; }
       const sl = {}, sa = {}, cn = {}; let gx = 0, gy = 0, gc = 0, rx = 0, ry = 0, rc = 0;
       for (let id = 1; id <= cells.maxId; id++) { if (!cells.h3[id]) continue; gx += cells.lng[id]; gy += cells.lat[id]; gc++; const mn = cells.muni[id]; if (mn) { sl[mn] = (sl[mn] || 0) + cells.lng[id]; sa[mn] = (sa[mn] || 0) + cells.lat[id]; cn[mn] = (cn[mn] || 0) + 1; rx += cells.lng[id]; ry += cells.lat[id]; rc++; } }
       this.muniCentroid = {}; Object.keys(cn).forEach((k) => (this.muniCentroid[k] = [sl[k] / cn[k], sa[k] / cn[k]]));
@@ -102,13 +109,14 @@ export default class App extends React.Component {
   hex2rgb(h) { h = h.replace('#', ''); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; }
   mix(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
   stopsFromColor(hex) { const c = this.hex2rgb(hex), w = [255, 255, 255], k = [0, 0, 0]; return [this.mix(w, c, .16), this.mix(w, c, .46), c, this.mix(c, k, .3), this.mix(c, k, .55)].map((x) => x.map(Math.round)); }
-  stopsForMetric(m) { const h = this.state.heatColors[m]; return h ? this.stopsFromColor(h) : this.RAMPS[this.metricRamp[m]]; }
+  stopsFromGradient(stops) { return [0, 0.25, 0.5, 0.75, 1].map((t) => { let lo = stops[0], hi = stops[stops.length - 1]; for (let i = 0; i < stops.length - 1; i++) { if (stops[i].pos <= t && stops[i + 1].pos >= t) { lo = stops[i]; hi = stops[i + 1]; break; } } const span = hi.pos - lo.pos; const u = span > 0 ? (t - lo.pos) / span : 0; return this.mix(this.hex2rgb(lo.hex), this.hex2rgb(hi.hex), u).map(Math.round); }); }
+  stopsForMetric(m) { const h = this.state.heatColors[m]; return Array.isArray(h) ? this.stopsFromGradient(h) : this.RAMPS[this.metricRamp[m]]; }
   cityStops() { return this.stopsForMetric(this.state.metric); }
-  catchStops() { const s = this.state; if (s.catchCo2) return this.stopsForMetric('co2'); if (s.catchDir === 'both') return null; return this.stopsForMetric(s.catchDir === 'in' ? 'inc' : 'out'); }
+  catchStops() { const s = this.state, f = s.catchFlags; if (s.catchCo2) return this.stopsForMetric('co2'); if (f.in && f.out) return null; if (f.in) return this.stopsForMetric('inc'); if (f.out) return this.stopsForMetric('out'); return this.stopsForMetric('internal'); }
   ramp(t, stops) { const n = stops.length - 1; let x = t * n; if (x < 0) x = 0; if (x > n) x = n; let i = Math.floor(x); if (i >= n) i = n - 1; const u = x - i, a = stops[i], b = stops[i + 1]; return [Math.round(a[0] + (b[0] - a[0]) * u), Math.round(a[1] + (b[1] - a[1]) * u), Math.round(a[2] + (b[2] - a[2]) * u)]; }
 
-  cityColor(id) {
-    const k = this.state.metric, stops = this.cityStops();
+  cityColor(id, metricOverride) {
+    const k = metricOverride || this.state.metric, stops = this.stopsForMetric(k);
     const v = (this.data.metrics[k][id] || 0); if (!(v > 0)) return [0, 0, 0, 0];
     let t = Math.log(1 + v) / Math.log(1 + this.vmax[k]); if (t > 1) t = 1;
     const c = this.ramp(t, stops); let a = 205; const fm = this.state.filterMuni; if (fm && this.data.cells.muni[id] !== fm) a = 16;
@@ -152,45 +160,58 @@ export default class App extends React.Component {
       else if (oin && !din) { outMap[d] = (outMap[d] || 0) + f; totOut += f; const g = f * this.hav(cells.lat[d], cells.lng[d], hub[1], hub[0]) * this.EF; co2Out[d] = (co2Out[d] || 0) + g; totCo2Out += g; }
       else if (oin && din) intra += f;
     }
-    this.cat = { inMap, outMap, co2In, co2Out, totIn, totOut, totCo2In, totCo2Out, intra, count: sel.count, hub, label: sel.label, kind: sel.kind, sub: sel.sub, polyRings: sel.polyRings, circle: sel.circle };
+    this.cat = { inMap, outMap, co2In, co2Out, totIn, totOut, totCo2In, totCo2Out, intra, count: sel.count, mem: sel.mem, hub, label: sel.label, kind: sel.kind, sub: sel.sub, polyRings: sel.polyRings, circle: sel.circle };
   }
 
-  connValue(id) { const c = this.cat, d = this.state.catchDir, co2 = this.state.catchCo2; if (co2) { if (d === 'in') return c.co2In[id] || 0; if (d === 'out') return c.co2Out[id] || 0; return (c.co2In[id] || 0) + (c.co2Out[id] || 0); } if (d === 'in') return c.inMap[id] || 0; if (d === 'out') return c.outMap[id] || 0; return (c.inMap[id] || 0) + (c.outMap[id] || 0); }
+  connValue(id) { const c = this.cat, f = this.state.catchFlags, co2 = this.state.catchCo2; if (!f.in && !f.out) return 0; if (co2) { if (f.in && f.out) return (c.co2In[id] || 0) + (c.co2Out[id] || 0); if (f.in) return c.co2In[id] || 0; return c.co2Out[id] || 0; } if (f.in && f.out) return (c.inMap[id] || 0) + (c.outMap[id] || 0); if (f.in) return c.inMap[id] || 0; return c.outMap[id] || 0; }
 
   updateLayers() {
     if (!this.overlay || !this.data) return;
     const s = this.state, layers = [], dark = s.basemap === 'dark';
     if (s.heatmap || s.grid) layers.push(new H3HexagonLayer({
       id: 'hex', data: this.hexData, getHexagon: (d) => d.h3, extruded: false, filled: s.heatmap, stroked: s.grid,
-      getFillColor: (d) => this.cityColor(d.id), getLineColor: dark ? [255, 255, 255, 30] : [23, 50, 77, 32], lineWidthMinPixels: 0.5, getLineWidth: 1,
+      getFillColor: (d) => (s.mode === 'catchment' && s.catchCo2) ? this.cityColor(d.id, 'co2') : this.cityColor(d.id), getLineColor: dark ? [255, 255, 255, 30] : [23, 50, 77, 32], lineWidthMinPixels: 0.5, getLineWidth: 1,
       pickable: true, autoHighlight: true, highlightColor: [0, 102, 204, 90],
-      updateTriggers: { getFillColor: [s.metric, s.filterMuni, s.heatmap, JSON.stringify(s.heatColors)] },
+      updateTriggers: { getFillColor: [s.metric, s.filterMuni, s.heatmap, JSON.stringify(s.heatColors), s.mode, s.catchCo2] },
     }));
     if (this.cat) {
-      const c = this.data.cells, conn = [], keys = {};
-      if (s.catchDir !== 'out') { const m = s.catchCo2 ? this.cat.co2In : this.cat.inMap; Object.keys(m).forEach((k) => (keys[k] = 1)); }
-      if (s.catchDir !== 'in') { const m = s.catchCo2 ? this.cat.co2Out : this.cat.outMap; Object.keys(m).forEach((k) => (keys[k] = 1)); }
-      let vmax = 1; Object.keys(keys).forEach((id) => { const v = this.connValue(+id); if (v > vmax) vmax = v; if (c.h3[id]) conn.push({ id: +id, h3: c.h3[id], v }); });
-      this.connInfo = { vmax }; const vlog = Math.log(1 + vmax);
-      const cStops = this.catchStops(), aStops = this.stopsForMetric('inc'), tStops = this.stopsForMetric('out'), both = s.catchDir === 'both' && !s.catchCo2;
-      layers.push(new H3HexagonLayer({
-        id: 'conn', data: conn, getHexagon: (d) => d.h3, extruded: false, filled: true, stroked: false,
-        getFillColor: (d) => {
-          let t = Math.log(1 + d.v) / vlog; if (t > 1) t = 1; if (t < 0.05) t = 0.05;
-          if (!both) { const col = this.ramp(t, cStops); return [col[0], col[1], col[2], 225]; }
-          const iv = this.cat.inMap[d.id] || 0, ov = this.cat.outMap[d.id] || 0, tot = iv + ov, ratio = tot ? ov / tot : 0.5;
-          const col = this.mix(this.ramp(t, aStops), this.ramp(t, tStops), ratio).map(Math.round); return [col[0], col[1], col[2], 225];
-        },
-        pickable: true, autoHighlight: true, highlightColor: [0, 102, 204, 80],
-        updateTriggers: { getFillColor: [s.catchDir, s.catchCo2, JSON.stringify(s.heatColors), s.areaLevel, s.areaMuni, s.areaZone, s.frazId, s.radiusKm, s.ptLat] },
-      }));
-      const hub = this.cat.hub, top = conn.slice().sort((a, b) => b.v - a.v).slice(0, 28), tf = top.length ? top[0].v : 1, arcsIn = [], arcsOut = [];
-      top.forEach((t) => { const cell = [c.lng[t.id], c.lat[t.id]], iv = s.catchCo2 ? (this.cat.co2In[t.id] || 0) : (this.cat.inMap[t.id] || 0), ov = s.catchCo2 ? (this.cat.co2Out[t.id] || 0) : (this.cat.outMap[t.id] || 0); if (s.catchDir !== 'out' && iv) arcsIn.push({ from: cell, to: hub, f: iv }); if (s.catchDir !== 'in' && ov) arcsOut.push({ from: hub, to: cell, f: ov }); });
-      if (arcsIn.length) layers.push(new ArcLayer({ id: 'arcin', data: arcsIn, getSourcePosition: (d) => d.from, getTargetPosition: (d) => d.to, getSourceColor: [204, 122, 0, 70], getTargetColor: [204, 122, 0, 240], getWidth: (d) => 1 + (d.f / tf) * 8, widthUnits: 'pixels', getHeight: 0 }));
-      if (arcsOut.length) layers.push(new ArcLayer({ id: 'arcout', data: arcsOut, getSourcePosition: (d) => d.from, getTargetPosition: (d) => d.to, getSourceColor: [7, 127, 123, 240], getTargetColor: [11, 203, 197, 70], getWidth: (d) => 1 + (d.f / tf) * 8, widthUnits: 'pixels', getHeight: 0 }));
+      const c = this.data.cells, f = s.catchFlags;
+      if (!s.catchCo2 && (f.in || f.out)) {
+        const conn = [], keys = {};
+        if (f.in) Object.keys(this.cat.inMap).forEach((k) => (keys[k] = 1));
+        if (f.out) Object.keys(this.cat.outMap).forEach((k) => (keys[k] = 1));
+        let vmax = 1; Object.keys(keys).forEach((id) => { const v = this.connValue(+id); if (v > vmax) vmax = v; if (c.h3[id]) conn.push({ id: +id, h3: c.h3[id], v }); });
+        this.connInfo = { vmax }; const vlog = Math.log(1 + vmax);
+        const cStops = this.catchStops(), aStops = this.stopsForMetric('inc'), tStops = this.stopsForMetric('out'), both = f.in && f.out;
+        layers.push(new H3HexagonLayer({
+          id: 'conn', data: conn, getHexagon: (d) => d.h3, extruded: false, filled: true, stroked: false,
+          getFillColor: (d) => {
+            let t = Math.log(1 + d.v) / vlog; if (t > 1) t = 1; if (t < 0.05) t = 0.05;
+            if (!both) { const col = this.ramp(t, cStops); return [col[0], col[1], col[2], 225]; }
+            const iv = this.cat.inMap[d.id] || 0, ov = this.cat.outMap[d.id] || 0, tot = iv + ov, ratio = tot ? ov / tot : 0.5;
+            const col = this.mix(this.ramp(t, aStops), this.ramp(t, tStops), ratio).map(Math.round); return [col[0], col[1], col[2], 225];
+          },
+          pickable: true, autoHighlight: true, highlightColor: [0, 102, 204, 80],
+          updateTriggers: { getFillColor: [JSON.stringify(f), JSON.stringify(s.heatColors), s.areaLevel, s.areaMuni, s.areaZone, s.frazId, s.radiusKm, s.ptLat] },
+        }));
+        const hub = this.cat.hub, top = conn.slice().sort((a, b) => b.v - a.v).slice(0, 28), tf = top.length ? top[0].v : 1, arcsIn = [], arcsOut = [];
+        top.forEach((t) => { const cell = [c.lng[t.id], c.lat[t.id]], iv = this.cat.inMap[t.id] || 0, ov = this.cat.outMap[t.id] || 0; if (f.in && iv) arcsIn.push({ from: cell, to: hub, f: iv }); if (f.out && ov) arcsOut.push({ from: hub, to: cell, f: ov }); });
+        if (arcsIn.length) layers.push(new ArcLayer({ id: 'arcin', data: arcsIn, getSourcePosition: (d) => d.from, getTargetPosition: (d) => d.to, getSourceColor: [204, 122, 0, 70], getTargetColor: [204, 122, 0, 240], getWidth: (d) => 1 + (d.f / tf) * 8, widthUnits: 'pixels', getHeight: 0 }));
+        if (arcsOut.length) layers.push(new ArcLayer({ id: 'arcout', data: arcsOut, getSourcePosition: (d) => d.from, getTargetPosition: (d) => d.to, getSourceColor: [7, 127, 123, 240], getTargetColor: [11, 203, 197, 70], getWidth: (d) => 1 + (d.f / tf) * 8, widthUnits: 'pixels', getHeight: 0 }));
+      }
+      if (f.internal) {
+        const intData = [], intMet = this.data.metrics.internal, intVmax = this.vmax.internal, intStops = this.stopsForMetric('internal'), intVlog = Math.log(1 + intVmax);
+        for (let id = 1; id <= c.maxId; id++) { if (this.cat.mem[id] && c.h3[id]) intData.push({ id, h3: c.h3[id] }); }
+        layers.push(new H3HexagonLayer({
+          id: 'internal', data: intData, getHexagon: (d) => d.h3, extruded: false, filled: true, stroked: false,
+          getFillColor: (d) => { const v = intMet[d.id] || 0; if (!(v > 0)) return [0, 0, 0, 0]; let t = Math.log(1 + v) / intVlog; if (t > 1) t = 1; const col = this.ramp(t, intStops); return [col[0], col[1], col[2], 200]; },
+          pickable: true, autoHighlight: true, highlightColor: [0, 102, 204, 80],
+          updateTriggers: { getFillColor: [JSON.stringify(s.heatColors), s.areaLevel, s.areaMuni, s.areaZone, s.frazId, s.radiusKm, s.ptLat] },
+        }));
+      }
       if (this.cat.polyRings) layers.push(new GeoJsonLayer({ id: 'areafill', data: { type: 'FeatureCollection', features: this.cat.polyRings.map((r) => ({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [r] } })) }, stroked: true, filled: true, getFillColor: [0, 51, 102, 24], getLineColor: [0, 51, 102, 235], getLineWidth: 2.5, lineWidthUnits: 'pixels' }));
       else if (this.cat.circle) layers.push(new PolygonLayer({ id: 'circle', data: [{ polygon: this.circlePoly(this.cat.circle.lng, this.cat.circle.lat, this.cat.circle.km) }], getPolygon: (d) => d.polygon, filled: true, stroked: true, getFillColor: [0, 51, 102, 18], getLineColor: [0, 51, 102, 200], getLineWidth: 2, lineWidthUnits: 'pixels' }));
-      layers.push(new ScatterplotLayer({ id: 'hub', data: [{ p: hub }], getPosition: (d) => d.p, getFillColor: [255, 200, 0], getRadius: 8, radiusUnits: 'pixels', stroked: true, getLineColor: [0, 51, 102], lineWidthMinPixels: 2.5 }));
+      layers.push(new ScatterplotLayer({ id: 'hub', data: [{ p: this.cat.hub }], getPosition: (d) => d.p, getFillColor: [255, 200, 0], getRadius: 8, radiusUnits: 'pixels', stroked: true, getLineColor: [0, 51, 102], lineWidthMinPixels: 2.5 }));
     }
     if (s.showMuniBounds) { const _zoom = this.map ? this.map.getZoom() : 9; layers.push(new GeoJsonLayer({ id: 'bounds', data: this.boundaryGeo, stroked: true, filled: false, getLineColor: (f) => (s.filterMuni && f.properties.n === s.filterMuni) ? [204, 122, 0, 255] : (dark ? [255, 255, 255, 180] : [0, 51, 102, 180]), getLineWidth: (f) => (s.filterMuni && f.properties.n === s.filterMuni) ? 3 : 1.8, lineWidthUnits: 'pixels', lineWidthMinPixels: 1.4, updateTriggers: { getLineColor: [s.filterMuni, s.basemap], getLineWidth: [s.filterMuni] } })); }
     if (s.showMuniLabels && this.muniLabelData && this.muniLabelData.length) { const _zoom = this.map ? this.map.getZoom() : 9; layers.push(new TextLayer({ id: 'munilabels', data: this.muniLabelData, getPosition: (d) => d.position, getText: (d) => d.text, getSize: Math.min(16, Math.max(11, (_zoom - 9) * 3 + 11)), getColor: dark ? [255, 255, 255, 235] : [0, 51, 102, 235], getBackgroundColor: dark ? [0, 20, 50, 190] : [255, 255, 255, 210], background: true, backgroundPadding: [5, 3], fontWeight: 700, fontFamily: "'Titillium Web',sans-serif", billboard: false, sizeUnits: 'pixels', getTextAnchor: 'middle', getAlignmentBaseline: 'center', updateTriggers: { getColor: [s.basemap], getBackgroundColor: [s.basemap] } })); }
@@ -212,7 +233,7 @@ export default class App extends React.Component {
 
   gradStr(stops) { return `linear-gradient(90deg, ${stops.map((c, i) => `rgb(${c[0]},${c[1]},${c[2]}) ${(i / (stops.length - 1) * 100).toFixed(0)}%`).join(',')})`; }
   bothGradStr() { const a = this.ramp(.7, this.stopsForMetric('inc')), b = this.ramp(.7, this.stopsForMetric('out')); return `linear-gradient(90deg, rgb(${a.join(',')}), #b8b08a, rgb(${b.join(',')}))`; }
-  updateLegend() { if (!this.legendBar) return; const s = this.state; if (s.mode === 'catchment' && s.catchDir === 'both' && !s.catchCo2) this.legendBar.style.background = this.bothGradStr(); else this.legendBar.style.background = this.gradStr(s.mode === 'catchment' ? (this.catchStops() || this.stopsForMetric('co2')) : this.cityStops()); }
+  updateLegend() { if (!this.legendBar) return; const s = this.state, f = s.catchFlags; if (s.mode === 'catchment' && f && f.in && f.out && !s.catchCo2) this.legendBar.style.background = this.bothGradStr(); else this.legendBar.style.background = this.gradStr(s.mode === 'catchment' ? (this.catchStops() || this.stopsForMetric('co2')) : this.cityStops()); }
   updateColorPreview() { if (!this.colorPreview) return; this.colorPreview.style.background = this.gradStr(this.cityStops()); }
 
   tooltip({ object, layer }) {
@@ -231,7 +252,7 @@ export default class App extends React.Component {
   setAuto() { this.setState((s) => ({ heatColors: { ...s.heatColors, [s.metric]: null } }), () => this.refresh()); }
   setTab(t) { this.setState({ tab: t }); }
   setDir(d) { this.setState({ catchDir: d }, () => this.refresh()); }
-  toggleDir(which) { const d = this.state.catchDir; if (which === 'in') { if (d === 'out') this.setDir('both'); else if (d === 'both') this.setDir('out'); } else { if (d === 'in') this.setDir('both'); else if (d === 'both') this.setDir('in'); } }
+  toggleDir(which) { this.setState((s) => ({ catchFlags: { ...s.catchFlags, [which]: !s.catchFlags[which] } }), () => this.refresh()); }
   toggleCo2() { this.setState((s) => ({ catchCo2: !s.catchCo2 }), () => this.refresh()); }
   setBasemapVal(v) { this.setState({ basemap: v }); if (this.map) { this.map.setStyle(this.STYLES[v]); this.map.once('styledata', () => setTimeout(() => { this.updateLayers(); this.updateLegend(); }, 120)); } }
   setFilterVal(v) { v = +v; this.setState({ filterMuni: v }, () => this.refresh()); if (this.map) { if (v && this.muniBbox[v]) { const b = this.muniBbox[v]; this.map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 60, duration: 700 }); } else this.map.flyTo({ center: [12.52, 41.9], zoom: 9.3, duration: 700 }); } }
@@ -274,17 +295,20 @@ export default class App extends React.Component {
     const kg = (g) => Math.round(g / 1000).toLocaleString('it-IT'), tonn = (g) => (g / 1e6).toLocaleString('it-IT', { maximumFractionDigits: 1 });
     let legendTitle, legendMax, legendMin = '0', legendUnit;
     if (s.mode === 'catchment' && this.cat) {
-      const dirTxt = s.catchDir === 'in' ? 'origine' : s.catchDir === 'out' ? 'destinazione' : 'entrata ↔ uscita';
+      const dirTxt = s.catchDir === 'in' ? 'origine' : s.catchDir === 'out' ? 'destinazione' : s.catchDir === 'internal' ? 'interno' : 'entrata ↔ uscita';
       if (s.catchDir === 'both' && !s.catchCo2) { legendTitle = 'Bacino · entrata ↔ uscita'; legendMin = 'entrata'; legendMax = 'uscita'; legendUnit = ''; }
-      else { legendTitle = (s.catchCo2 ? 'CO₂ bacino · ' : 'Bacino · ') + dirTxt; legendMax = this.connInfo ? (s.catchCo2 ? kg(this.connInfo.vmax) : fmt(this.connInfo.vmax)) : '—'; legendUnit = s.catchCo2 ? 'kg/g' : 'viaggi/g'; }
+      else if (s.catchDir === 'internal') { legendTitle = 'Spostamenti interni · bacino'; legendMax = this.vmax ? fmt(this.vmax.internal || 0) : '—'; legendUnit = 'viaggi/g'; }
+      else if (s.catchCo2) { legendTitle = 'CO₂ · città intera'; legendMax = this.vmax ? fmt(this.vmax.co2 || 0) : '—'; legendUnit = 't/g'; }
+      else { legendTitle = 'Bacino · ' + dirTxt; legendMax = this.connInfo ? fmt(this.connInfo.vmax) : '—'; legendUnit = 'viaggi/g'; }
     } else { legendTitle = this.METRIC_LABEL[s.metric]; legendMax = this.vmax ? fmt(this.vmax[s.metric] || 0) : '—'; legendUnit = s.metric === 'co2' ? 't/g' : 'viaggi/g'; }
     const zoneAll = this.data ? this.data.zone : [];
     const zoneFiltered = s.areaMuni ? zoneAll.filter((z) => z.muni === s.areaMuni) : zoneAll;
     const v = {
       legendTitle, legendMax, legendMin, legendUnit,
       municipiOptions: P ? P.municipi.slice().sort((a, b) => a.n - b.n).map((m) => ({ n: m.n, label: m.full.replace('Municipio Roma ', 'Municipio ') })) : [],
-      heatModeName: s.heatColors[s.metric] ? 'Personalizzato' : 'Automatico',
-      heatColorValue: s.heatColors[s.metric] || (s.metric === 'out' ? '#003366' : s.metric === 'inc' ? '#089994' : '#cc7a00'),
+      heatModeName: Array.isArray(s.heatColors[s.metric]) ? 'Personalizzato' : 'Automatico',
+      heatStops: s.heatColors[s.metric] || this.METRIC_DEFAULT_STOPS[s.metric],
+      heatDefaultStops: this.METRIC_DEFAULT_STOPS[s.metric],
       metricLabelShort: this.metricShort[s.metric],
       zoneOptions: zoneFiltered.map((z) => ({ id: z.id, label: z.name + ' · ' + z.tipo + (z.muni ? ' (Mun. ' + (this.muniName[z.muni] || '').replace('Municipio Roma ', '') + ')' : '') })),
       zoneCount: zoneFiltered.length,
@@ -294,7 +318,7 @@ export default class App extends React.Component {
       inLabel: s.catchCo2 ? 'CO₂ ENTRATA · t/g' : 'IN ENTRATA · viaggi/g', outLabel: s.catchCo2 ? 'CO₂ USCITA · t/g' : 'IN USCITA · viaggi/g',
       kpiTrips: P ? (P.totals.trips / 1e6).toFixed(2).replace('.', ',') + ' M' : '—', kpiCo2: P ? fmt(P.totals.co2_baseline) : '—', kpiCells: P ? fmt(P.totals.cells) : '—',
       co2Bars: [], modalSegs: [], modalLegend: [], modalAuto: 0, scenari: [], smartPts: '', smartArea: '', smartDots: [], smartGrid: [],
-      topOrigins: [], topDests: [], totIn: '0', totOut: '0', intraNote: '', selName: '', selSub: '', selKind: '',
+      topOrigins: [], topDests: [], totIn: '0', totOut: '0', totIntra: '0', intraNote: '', selName: '', selSub: '', selKind: '',
       puntiNevralgici: PUNTI_NEVRALGICI.map((p) => ({ ...p, color: nevralgicoColor(p.tipologia) })),
       hasCatchment: !!this.cat,
     };
@@ -303,6 +327,7 @@ export default class App extends React.Component {
       v.selName = this.cat.label; v.selSub = this.cat.sub; v.selKind = this.cat.kind;
       v.totIn = co2 ? tonn(this.cat.totCo2In) : fmt(this.cat.totIn);
       v.totOut = co2 ? tonn(this.cat.totCo2Out) : fmt(this.cat.totOut);
+      v.totIntra = fmt(this.cat.intra);
       v.intraNote = co2 ? `Stima CO₂ tank-to-wheel · ${fmt(this.cat.intra)} spostamenti interni.` : `Più ${fmt(this.cat.intra)} spostamenti interni al bacino.`;
       const agg = (map) => { const a = {}; for (const id in map) { const m = c.muni[id] || 0; a[m] = (a[m] || 0) + map[id]; } return Object.keys(a).map((k) => ({ name: +k ? (this.muniName[k] || 'Municipio ' + k).replace('Municipio Roma ', 'Mun. ') : 'Area periurbana', flux: a[k] })).sort((x, y) => y.flux - x.flux); };
       const inSrc = co2 ? this.cat.co2In : this.cat.inMap, outSrc = co2 ? this.cat.co2Out : this.cat.outMap;

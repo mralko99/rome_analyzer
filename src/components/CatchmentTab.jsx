@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { css } from '../utils/css.js';
 import { segStyle, co2Pill, rowStyle, pill } from '../utils/styles.js';
-import RankList from './RankList.jsx';
 
-export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetAreaLevel, onSetAreaMuni, onSetAreaZone, onSetFraz, onSetRadius, onToggleDir, onToggleCo2, onToggle, onClearPoint, onNevralgico }) {
+export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetAreaLevel, onSetAreaMuni, onSetAreaZone, onSetFraz, onSetRadius, onToggleDir, onToggleCo2, onToggle, onNevralgico }) {
   const [poliOpen, setPoliOpen] = useState(true);
   return (
     <div style={css('padding:16px;display:flex;flex-direction:column;gap:16px;')}>
@@ -113,10 +112,11 @@ export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetA
           <button onClick={onToggleCo2} style={co2Pill(s.catchCo2)}>CO₂ {s.catchCo2 ? 'ON' : 'OFF'}</button>
         </div>
         <div style={css('display:flex;gap:5px;')}>
-          <button onClick={() => onToggleDir('in')} style={segStyle(s.catchDir !== 'out')}>Entrata</button>
-          <button onClick={() => onToggleDir('out')} style={segStyle(s.catchDir !== 'in')}>Uscita</button>
+          <button onClick={() => onToggleDir('in')} style={pill(s.catchFlags && s.catchFlags.in)}>Entrata</button>
+          <button onClick={() => onToggleDir('out')} style={pill(s.catchFlags && s.catchFlags.out)}>Uscita</button>
+          <button onClick={() => onToggleDir('internal')} style={pill(s.catchFlags && s.catchFlags.internal)}>Interno</button>
         </div>
-        {s.catchDir === 'both' && !s.catchCo2 && (
+        {s.catchFlags && s.catchFlags.in && s.catchFlags.out && !s.catchCo2 && (
           <>
             <div style={{ ...css('height:9px;border-radius:2px;margin-top:9px;'), background: bothGradStr() }} />
             <div style={css('display:flex;justify-content:space-between;margin-top:3px;font-size:10px;color:#768594;font-weight:600;')}><span>prevale entrata</span><span>prevale uscita</span></div>
@@ -126,37 +126,6 @@ export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetA
           <div style={css('font-size:10px;color:#a3adb7;margin-top:7px;line-height:1.35;')}>CO₂ stimata: spostamenti × distanza dal centro del bacino × 117 g/km.</div>
         )}
       </div>
-
-      {v.hasCatchment ? (
-        <div style={css('border-top:1px solid #ebeced;padding-top:14px;display:flex;flex-direction:column;gap:14px;')}>
-          <div style={css('display:flex;align-items:center;justify-content:space-between;')}>
-            <div>
-              <div style={css('font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#089994;')}>{v.selKind}</div>
-              <div style={css('font-size:14px;font-weight:700;color:#003366;')}>{v.selName}</div>
-              <div style={css("font-size:11px;color:#929da9;font-family:'Roboto Mono',monospace;")}>{v.selSub}</div>
-            </div>
-            <button onClick={onClearPoint} style={css('height:28px;padding:0 11px;border:1px solid #ebeced;background:#fff;border-radius:4px;cursor:pointer;color:#5c6f82;font-family:inherit;font-size:12.5px;font-weight:600;')}>Azzera</button>
-          </div>
-          <div style={css('display:grid;grid-template-columns:1fr 1fr;gap:8px;')}>
-            <div style={css('background:#f6e4c8;border-radius:4px;padding:10px 12px;')}>
-              <div style={css('font-size:10px;color:#995c00;font-weight:600;')}>{v.inLabel}</div>
-              <div style={css("font-family:'Lora',serif;font-size:22px;font-weight:600;color:#995c00;font-variant-numeric:tabular-nums;")}>{v.totIn}</div>
-            </div>
-            <div style={css('background:#ccfffd;border-radius:4px;padding:10px 12px;')}>
-              <div style={css('font-size:10px;color:#077f7b;font-weight:600;')}>{v.outLabel}</div>
-              <div style={css("font-family:'Lora',serif;font-size:22px;font-weight:600;color:#05615e;font-variant-numeric:tabular-nums;")}>{v.totOut}</div>
-            </div>
-          </div>
-          <div style={css('font-size:11.5px;color:#929da9;margin-top:-6px;')}>{v.intraNote}</div>
-          <RankList title="Da dove arrivano" sub="origine" rows={v.topOrigins} color="#cc7a00" />
-          <RankList title="Dove vanno" sub="destinazione" rows={v.topDests} color="#089994" />
-        </div>
-      ) : (
-        <div style={css('border-top:1px solid #ebeced;padding-top:16px;display:flex;gap:10px;align-items:flex-start;color:#5c6f82;')}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5c6f82" strokeWidth="2" style={{ flex: 'none', marginTop: '1px' }}><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /><circle cx="12" cy="12" r="4" /></svg>
-          <span style={css('font-size:12.5px;line-height:1.4;')}>{v.noSelHint}</span>
-        </div>
-      )}
     </div>
   );
 }
