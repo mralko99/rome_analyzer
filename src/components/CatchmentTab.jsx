@@ -12,6 +12,25 @@ export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetA
         <button onClick={() => onToggle('grid')} style={rowStyle()}><span>Griglia H3</span><span style={pill(s.grid)}>{s.grid ? 'ON' : 'OFF'}</span></button>
       </div>
       <div>
+        <div style={css('display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;')}>
+          <span style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;')}>Direzione visualizzata</span>
+        </div>
+        <div style={css('display:flex;gap:5px;')}>
+          <button onClick={() => onToggleDir('in')} style={pill(s.catchFlags && s.catchFlags.in)}>Entrata</button>
+          <button onClick={() => onToggleDir('out')} style={pill(s.catchFlags && s.catchFlags.out)}>Uscita</button>
+          <button onClick={() => onToggleDir('internal')} style={pill(s.catchFlags && s.catchFlags.internal)}>Interno</button>
+        </div>
+        {s.catchFlags && s.catchFlags.in && s.catchFlags.out && !s.catchCo2 && (
+          <>
+            <div style={{ ...css('height:9px;border-radius:2px;margin-top:9px;'), background: bothGradStr() }} />
+            <div style={css('display:flex;justify-content:space-between;margin-top:3px;font-size:10px;color:#768594;font-weight:600;')}><span>prevale entrata</span><span>prevale uscita</span></div>
+          </>
+        )}
+        {s.catchCo2 && (
+          <div style={css('font-size:10px;color:#a3adb7;margin-top:7px;line-height:1.35;')}>CO₂ stimata: spostamenti × distanza dal centro del bacino × 117 g/km.</div>
+        )}
+      </div>
+      <div>
         <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>Tipologia selezione</div>
         <div style={css('display:flex;gap:5px;')}>
           <button onClick={() => onSetCatchMode('radius')} style={segStyle(s.catchMode === 'radius')}>Punto</button>
@@ -21,6 +40,17 @@ export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetA
 
       {s.catchMode === 'radius' && (
         <div style={css('display:flex;flex-direction:column;gap:16px;')}>
+          <div>
+            <div style={css('display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;')}>
+              <span style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;')}>Raggio del bacino</span>
+              <span style={css('font-size:13.5px;font-weight:700;color:#003366;')}>{v.radiusLabel}</span>
+            </div>
+            <input type="range" min="0.2" max="10" step="0.1" value={s.radiusKm} onChange={(e) => onSetRadius(e.target.value)} />
+            <div style={css('display:flex;justify-content:space-between;margin-top:2px;')}>
+              <span style={css('font-size:10px;color:#a3adb7;')}>200 m</span>
+              <span style={css('font-size:10px;color:#a3adb7;')}>10 km</span>
+            </div>
+          </div>
           <div>
             <div style={css('display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;')}>
               <button onClick={() => setPoliOpen((o) => !o)} style={css('display:flex;align-items:center;gap:5px;background:none;border:none;padding:0;cursor:pointer;font-family:inherit;')}>
@@ -47,17 +77,6 @@ export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetA
                 );
               })}
             </div>}
-          </div>
-          <div>
-            <div style={css('display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;')}>
-              <span style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;')}>Raggio del bacino</span>
-              <span style={css('font-size:13.5px;font-weight:700;color:#003366;')}>{v.radiusLabel}</span>
-            </div>
-            <input type="range" min="0.2" max="10" step="0.1" value={s.radiusKm} onChange={(e) => onSetRadius(e.target.value)} />
-            <div style={css('display:flex;justify-content:space-between;margin-top:2px;')}>
-              <span style={css('font-size:10px;color:#a3adb7;')}>200 m</span>
-              <span style={css('font-size:10px;color:#a3adb7;')}>10 km</span>
-            </div>
           </div>
         </div>
       )}
@@ -106,25 +125,6 @@ export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetA
         </div>
       )}
 
-      <div>
-        <div style={css('display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;')}>
-          <span style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;')}>Direzione visualizzata</span>
-        </div>
-        <div style={css('display:flex;gap:5px;')}>
-          <button onClick={() => onToggleDir('in')} style={pill(s.catchFlags && s.catchFlags.in)}>Entrata</button>
-          <button onClick={() => onToggleDir('out')} style={pill(s.catchFlags && s.catchFlags.out)}>Uscita</button>
-          <button onClick={() => onToggleDir('internal')} style={pill(s.catchFlags && s.catchFlags.internal)}>Interno</button>
-        </div>
-        {s.catchFlags && s.catchFlags.in && s.catchFlags.out && !s.catchCo2 && (
-          <>
-            <div style={{ ...css('height:9px;border-radius:2px;margin-top:9px;'), background: bothGradStr() }} />
-            <div style={css('display:flex;justify-content:space-between;margin-top:3px;font-size:10px;color:#768594;font-weight:600;')}><span>prevale entrata</span><span>prevale uscita</span></div>
-          </>
-        )}
-        {s.catchCo2 && (
-          <div style={css('font-size:10px;color:#a3adb7;margin-top:7px;line-height:1.35;')}>CO₂ stimata: spostamenti × distanza dal centro del bacino × 117 g/km.</div>
-        )}
-      </div>
     </div>
   );
 }
