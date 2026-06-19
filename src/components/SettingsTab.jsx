@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { css } from '../utils/css.js';
-import { segStyle, pill, autoChip } from '../utils/styles.js';
+import { segStyle, pill, autoChip, rowStyle } from '../utils/styles.js';
 
 function sampleGradient(stops, t) {
   if (!stops || stops.length === 0) return '#888888';
@@ -76,6 +76,10 @@ export default function SettingsTab({ s, v, onMetric, onToggle, onSetHeatColor, 
 
   return (
     <div style={css('padding:16px;display:flex;flex-direction:column;gap:18px;')}>
+      <div style={css('display:flex;flex-direction:column;gap:8px;')}>
+        <button onClick={() => onToggle('heatmap')} style={rowStyle()}><span>Heatmap dati</span><span style={pill(s.heatmap)}>{s.heatmap ? 'ON' : 'OFF'}</span></button>
+        <button onClick={() => onToggle('grid')} style={rowStyle()}><span>Griglia H3</span><span style={pill(s.grid)}>{s.grid ? 'ON' : 'OFF'}</span></button>
+      </div>
       <div>
         <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:8px;')}>Metrica heatmap città</div>
         <div style={css('display:flex;gap:5px;flex-wrap:wrap;')}>

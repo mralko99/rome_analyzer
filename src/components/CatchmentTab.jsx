@@ -8,7 +8,7 @@ export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetA
     <div style={css('padding:16px;display:flex;flex-direction:column;gap:16px;')}>
       <div style={css('font-size:12.5px;color:#5c6f82;line-height:1.45;')}>Da dove arrivano e dove vanno gli spostamenti di un'area, in modo <b style={{ color: '#17324d' }}>gerarchico</b>.</div>
       <div style={css('display:flex;flex-direction:column;gap:8px;')}>
-        <button onClick={() => onToggle('heatmap')} style={rowStyle()}><span>Heatmap dati</span><span style={pill(s.heatmap)}>{s.heatmap ? 'ON' : 'OFF'}</span></button>
+        <button onClick={onToggleCo2} style={rowStyle()}><span>Attiva CO₂</span><span style={pill(s.catchCo2)}>{s.catchCo2 ? 'ON' : 'OFF'}</span></button>
         <button onClick={() => onToggle('grid')} style={rowStyle()}><span>Griglia H3</span><span style={pill(s.grid)}>{s.grid ? 'ON' : 'OFF'}</span></button>
       </div>
       <div>
@@ -109,7 +109,6 @@ export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetA
       <div>
         <div style={css('display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;')}>
           <span style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;')}>Direzione visualizzata</span>
-          <button onClick={onToggleCo2} style={co2Pill(s.catchCo2)}>CO₂ {s.catchCo2 ? 'ON' : 'OFF'}</button>
         </div>
         <div style={css('display:flex;gap:5px;')}>
           <button onClick={() => onToggleDir('in')} style={pill(s.catchFlags && s.catchFlags.in)}>Entrata</button>

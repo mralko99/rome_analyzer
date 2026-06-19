@@ -170,13 +170,19 @@ export default class App extends React.Component {
     const s = this.state, layers = [], dark = s.basemap === 'dark';
     if (s.heatmap || s.grid) layers.push(new H3HexagonLayer({
       id: 'hex', data: this.hexData, getHexagon: (d) => d.h3, extruded: false, filled: s.heatmap, stroked: s.grid,
-      getFillColor: (d) => (s.mode === 'catchment' && s.catchCo2) ? this.cityColor(d.id, 'co2') : this.cityColor(d.id), getLineColor: dark ? [255, 255, 255, 30] : [23, 50, 77, 32], lineWidthMinPixels: 0.5, getLineWidth: 1,
+      getFillColor: (d) => this.cityColor(d.id), getLineColor: dark ? [255, 255, 255, 30] : [23, 50, 77, 32], lineWidthMinPixels: 0.5, getLineWidth: 1,
       pickable: true, autoHighlight: true, highlightColor: [0, 102, 204, 90],
-      updateTriggers: { getFillColor: [s.metric, s.filterMuni, s.heatmap, JSON.stringify(s.heatColors), s.mode, s.catchCo2] },
+      updateTriggers: { getFillColor: [s.metric, s.filterMuni, s.heatmap, JSON.stringify(s.heatColors)] },
+    }));
+    if (s.mode === 'catchment' && s.catchCo2 && s.tab === 'catchment') layers.push(new H3HexagonLayer({
+      id: 'hex-co2', data: this.hexData, getHexagon: (d) => d.h3, extruded: false, filled: true, stroked: false,
+      getFillColor: (d) => this.cityColor(d.id, 'co2'), getLineColor: [0, 0, 0, 0], lineWidthMinPixels: 0,
+      pickable: false,
+      updateTriggers: { getFillColor: [s.catchCo2, s.tab] },
     }));
     if (this.cat) {
       const c = this.data.cells, f = s.catchFlags;
-      if (!s.catchCo2 && (f.in || f.out)) {
+      if (f.in || f.out) {
         const conn = [], keys = {};
         if (f.in) Object.keys(this.cat.inMap).forEach((k) => (keys[k] = 1));
         if (f.out) Object.keys(this.cat.outMap).forEach((k) => (keys[k] = 1));
@@ -250,7 +256,7 @@ export default class App extends React.Component {
   toggle(k) { this.setState((s) => ({ [k]: !s[k] }), () => this.refresh()); }
   setHeatColor(v) { this.setState((s) => ({ heatColors: { ...s.heatColors, [s.metric]: v } }), () => this.refresh()); }
   setAuto() { this.setState((s) => ({ heatColors: { ...s.heatColors, [s.metric]: null } }), () => this.refresh()); }
-  setTab(t) { this.setState({ tab: t }); }
+  setTab(t) { this.setState({ tab: t, ...(t !== 'catchment' ? { catchCo2: false } : {}) }, () => this.refresh()); }
   setDir(d) { this.setState({ catchDir: d }, () => this.refresh()); }
   toggleDir(which) { this.setState((s) => ({ catchFlags: { ...s.catchFlags, [which]: !s.catchFlags[which] } }), () => this.refresh()); }
   toggleCo2() { this.setState((s) => ({ catchCo2: !s.catchCo2 }), () => this.refresh()); }
@@ -317,7 +323,8 @@ export default class App extends React.Component {
       noSelHint: s.catchMode === 'area' ? (s.areaLevel ? 'Completa la selezione qui sopra.' : 'Scegli un ambito dal menu qui sopra.') : 'Clicca sulla mappa o scegli un polo qui sopra.',
       inLabel: s.catchCo2 ? 'CO₂ ENTRATA · t/g' : 'IN ENTRATA · viaggi/g', outLabel: s.catchCo2 ? 'CO₂ USCITA · t/g' : 'IN USCITA · viaggi/g',
       kpiTrips: P ? (P.totals.trips / 1e6).toFixed(2).replace('.', ',') + ' M' : '—', kpiCo2: P ? fmt(P.totals.co2_baseline) : '—', kpiCells: P ? fmt(P.totals.cells) : '—',
-      co2Bars: [], modalSegs: [], modalLegend: [], modalAuto: 0, scenari: [], smartPts: '', smartArea: '', smartDots: [], smartGrid: [],
+      co2Bars: [], modalSegs: [], modalLegend: [], modalAuto: 0, modalTrips: [], scenari: [], smartPts: '', smartArea: '', smartDots: [], smartGrid: [],
+      muniRank: null, muniRankOf: 15,
       topOrigins: [], topDests: [], totIn: '0', totOut: '0', totIntra: '0', intraNote: '', selName: '', selSub: '', selKind: '',
       puntiNevralgici: PUNTI_NEVRALGICI.map((p) => ({ ...p, color: nevralgicoColor(p.tipologia) })),
       hasCatchment: !!this.cat,
@@ -335,21 +342,24 @@ export default class App extends React.Component {
       const lab = (x) => co2 ? kg(x) : fmt(x);
       v.topOrigins = oi.slice(0, 8).map((r) => ({ name: r.name, flux: lab(r.flux), pct: Math.max(3, r.flux / mi * 100) }));
       v.topDests = od.slice(0, 8).map((r) => ({ name: r.name, flux: lab(r.flux), pct: Math.max(3, r.flux / mo * 100) }));
+      if (this.cat.kind === 'Municipio' && P) { const sortedMuni = P.municipi.slice().sort((a, b) => b.co2 - a.co2); const rank = sortedMuni.findIndex((m) => m.full === this.cat.label) + 1; if (rank > 0) { v.muniRank = rank; v.muniRankOf = sortedMuni.length; } }
     }
     if (P) {
       const muni = P.municipi, maxC = Math.max.apply(null, muni.map((m) => m.co2));
       v.co2Bars = muni.map((m) => ({ name: 'Mun. ' + m.name, pct: Math.max(2, m.co2 / maxC * 100), co2Label: fmt(m.co2), color: `rgb(${this.ramp(0.28 + 0.68 * m.co2 / maxC, this.RAMPS.ambra).join(',')})` }));
       const cs = P.cityShare, C = 2 * Math.PI * 50; let cum = 0;
       const order = [['Auto privata', cs.auto, '#003366'], ['Trasporto pubblico', cs.tpl, '#089994'], ['Piedi · bici', cs.active, '#00b377']];
-      v.modalSegs = order.map(([l, val, col]) => { const seg = { color: col, dash: `${(val * C).toFixed(1)} ${C.toFixed(1)}`, off: (-cum * C).toFixed(1) }; cum += val; return seg; });
+      v.modalSegs = order.map(([l, val, col]) => { const midAng = (cum + val / 2) * 2 * Math.PI - Math.PI / 2; const seg = { color: col, dash: `${(val * C).toFixed(1)} ${C.toFixed(1)}`, off: (-cum * C).toFixed(1), labelX: (70 + 50 * Math.cos(midAng)).toFixed(1), labelY: (70 + 50 * Math.sin(midAng)).toFixed(1), pct: Math.round(val * 100) }; cum += val; return seg; });
       v.modalLegend = order.map(([l, val, col]) => ({ label: l, color: col, pct: Math.round(val * 100) })); v.modalAuto = Math.round(cs.auto * 100);
+      v.modalTrips = order.map(([l, val]) => ({ trips_fmt: (val * P.totals.trips / 1e6).toFixed(1).replace('.', ',') + ' M' }));
       const sc = P.scenari, sbase = sc[0].co2;
-      v.scenari = sc.map((x, i) => ({ name: x.scenario.replace(/^Scenario [A-E] /, '').replace('(attuale)', '').trim(), w: x.co2 / sbase * 100, co2: fmt(x.co2), rid: i === 0 ? 'baseline' : '−' + x.rid_pct.toFixed(0) + '%', ridColor: i === 0 ? '#929da9' : '#008055', color: i === 0 ? '#768594' : `rgb(${this.ramp(0.3 + 0.6 * Math.min(1, x.rid_pct / 28), this.RAMPS.teal).join(',')})` }));
+      const scShortLabels = ['Base', 'A', 'B', 'C', 'D', 'E'];
+      v.scenari = sc.map((x, i) => ({ name: x.scenario.replace(/^Scenario [A-E] /, '').replace('(attuale)', '').trim(), shortName: scShortLabels[i] || String(i), w: x.co2 / sbase * 100, co2: fmt(x.co2), rid: i === 0 ? 'baseline' : '\u2212' + x.rid_pct.toFixed(0) + '%', ridT: i === 0 ? null : (x.rid_t != null ? fmt(x.rid_t) : null), ridColor: i === 0 ? '#929da9' : '#008055', color: i === 0 ? '#768594' : `rgb(${this.ramp(0.3 + 0.6 * Math.min(1, x.rid_pct / 28), this.RAMPS.teal).join(',')})` }));
       const sm = P.smart, co2s = sm.map((d) => d.co2), ymin = Math.min.apply(null, co2s), ymax = Math.max.apply(null, co2s);
       const xs = (val) => 34 + (val / 50) * 256, ys = (val) => 16 + (1 - (val - ymin) / (ymax - ymin)) * 104;
       v.smartPts = sm.map((d) => `${xs(d.pct).toFixed(1)},${ys(d.co2).toFixed(1)}`).join(' ');
       v.smartArea = `34,120 ` + sm.map((d) => `${xs(d.pct).toFixed(1)},${ys(d.co2).toFixed(1)}`).join(' ') + ` ${xs(50).toFixed(1)},120`;
-      v.smartDots = sm.filter((d, i) => i % 2 === 0 || d.pct === 50).map((d) => ({ cx: xs(d.pct).toFixed(1), cy: ys(d.co2).toFixed(1), lab: d.pct + '%' }));
+      v.smartDots = sm.map((d, i) => ({ cx: xs(d.pct).toFixed(1), cy: ys(d.co2).toFixed(1), lab: d.pct + '%', lab2: fmt(d.co2), above: i % 2 === 0 }));
       v.smartGrid = [ymax, (ymax + ymin) / 2, ymin].map((val) => ({ y: ys(val) + 3, label: fmt(val) }));
     }
     return v;
