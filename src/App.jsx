@@ -403,6 +403,7 @@ export default class App extends React.Component {
         const src = this.map.getCanvas(), w = src.width, h = src.height, scale = w / this.mapEl.clientWidth;
         const cv = document.createElement('canvas'); cv.width = w; cv.height = h + Math.round(40 * scale); const ctx = cv.getContext('2d');
         ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height); ctx.drawImage(src, 0, 0);
+        this.drawLegendOnCanvas(ctx, h, scale);
         const bh = Math.round(40 * scale); ctx.fillStyle = '#003366'; ctx.fillRect(0, h, w, bh);
         ctx.fillStyle = '#fff'; ctx.font = `${Math.round(15 * scale)}px 'Titillium Web', sans-serif`; ctx.textBaseline = 'middle';
         let cap; if (this.state.mode === 'catchment' && this.cat) { const dl = (this.state.catchCo2 ? 'CO₂ ' : '') + { in: 'in entrata', out: 'in uscita', both: 'entrata + uscita' }[this.state.catchDir]; cap = `Atlante mobilità Roma — bacino ${this.cat.label} · ${dl}`; } else { const tf = this.state.timeEnabled ? ` · ${this.state.hourStart}:00–${this.state.hourEnd}:59` : ''; cap = `Atlante mobilità Roma — ${this.METRIC_LABEL[this.state.metric]}${tf}`; }
@@ -411,6 +412,51 @@ export default class App extends React.Component {
       } catch (e) { alert('Esportazione non riuscita: ' + e.message); }
     });
     this.map.triggerRepaint();
+  }
+
+  drawLegendOnCanvas(ctx, mapH, scale) {
+    const s = this.state, v = this.viewModel();
+    const px = (n) => Math.round(n * scale);
+    const pad = px(12), boxW = px(220), barH = px(9);
+    const titleH = px(16), labelH = px(14), gap = px(6);
+    const boxH = pad * 2 + titleH + gap + barH + px(4) + labelH;
+    const x0 = px(14), y0 = mapH - px(14) - boxH;
+    // panel background
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,.94)';
+    ctx.fillRect(x0, y0, boxW, boxH);
+    // title
+    ctx.fillStyle = '#5c6f82';
+    ctx.font = `600 ${px(10)}px 'Titillium Web', sans-serif`;
+    ctx.textBaseline = 'top';
+    ctx.fillText((v.legendTitle || '').toUpperCase(), x0 + pad, y0 + pad);
+    // gradient bar
+    const barX = x0 + pad, barY = y0 + pad + titleH + gap, barW = boxW - pad * 2;
+    const useBoth = s.mode === 'catchment' && s.catchFlags && s.catchFlags.in && s.catchFlags.out && !s.catchCo2;
+    const grad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+    if (useBoth) {
+      const a = this.ramp(.7, this.stopsForMetric('inc')), b = this.ramp(.7, this.stopsForMetric('out'));
+      grad.addColorStop(0, `rgb(${a.join(',')})`);
+      grad.addColorStop(0.5, '#b8b08a');
+      grad.addColorStop(1, `rgb(${b.join(',')})`);
+    } else {
+      const stops = s.mode === 'catchment' ? (this.catchStops() || this.stopsForMetric('co2')) : this.cityStops();
+      stops.forEach((c, i) => grad.addColorStop(i / (stops.length - 1), `rgb(${c[0]},${c[1]},${c[2]})`));
+    }
+    ctx.fillStyle = grad;
+    ctx.fillRect(barX, barY, barW, barH);
+    // min / max labels
+    const labelY = barY + barH + px(4);
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = '#929da9';
+    ctx.font = `${px(10)}px 'Titillium Web', sans-serif`;
+    ctx.fillText(v.legendMin || '', barX, labelY);
+    const maxTxt = (v.legendMax || '') + (v.legendUnit ? ' ' + v.legendUnit : '');
+    ctx.fillStyle = '#5c6f82';
+    ctx.font = `600 ${px(10)}px 'Titillium Web', sans-serif`;
+    const tw = ctx.measureText(maxTxt).width;
+    ctx.fillText(maxTxt, barX + barW - tw, labelY);
+    ctx.restore();
   }
 
   // ---------- style helpers ----------
