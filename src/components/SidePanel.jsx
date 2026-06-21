@@ -4,6 +4,7 @@ import { tabStyle } from '../utils/styles.js';
 import SettingsTab from './SettingsTab.jsx';
 import CatchmentTab from './CatchmentTab.jsx';
 import StatsTab from './StatsTab.jsx';
+import CompareTab from './CompareTab.jsx';
 
 export default function SidePanel({
   sidePanelRef, drawerRef, s, v,
@@ -14,7 +15,9 @@ export default function SidePanel({
   onToggleTime, onHourStart, onHourEnd,
   onSetCatchMode, onSetAreaLevel, onSetAreaMuni, onSetAreaZone, onSetFraz,
   onSetRadius, onToggleDir, onToggleCo2, onClearPoint, onNevralgico,
-  onSetLayerStyle,
+  onSetLayerStyle, onSetAreaComuneEsterno,
+  onSetCompareLevel, onSetCompareMuni, onSetCompareZone,
+  onSetCompareFraz, onSetCompareComuneEsterno, onSetCompareRadius,
 }) {
   return (
     <div ref={sidePanelRef} style={css('flex:none;width:404px;overflow:hidden;background:#fafafa;')}>
@@ -29,8 +32,9 @@ export default function SidePanel({
 
         <div style={css('flex:none;display:flex;gap:3px;padding:9px 12px;background:#fff;border-bottom:1px solid #ebeced;')}>
           <button onClick={() => onSetTab('settings')} style={tabStyle(s.tab === 'settings')}>Impostazioni</button>
-          <button onClick={() => onSetTab('catchment')} style={tabStyle(s.tab === 'catchment')}>Area</button>
+          <button onClick={() => onSetTab('catchment')} style={tabStyle(s.tab === 'catchment')}>Selezione</button>
           <button onClick={() => onSetTab('stats')} style={tabStyle(s.tab === 'stats')}>Statistiche</button>
+          <button onClick={() => onSetTab('compare')} style={tabStyle(s.tab === 'compare')}>Confronto</button>
         </div>
 
         <div style={css('flex:1;overflow-y:auto;')}>
@@ -52,9 +56,21 @@ export default function SidePanel({
               onSetFraz={onSetFraz} onSetRadius={onSetRadius}
               onToggleDir={onToggleDir} onToggleCo2={onToggleCo2} onToggle={onToggle}
               onNevralgico={onNevralgico}
+              onSetAreaComuneEsterno={onSetAreaComuneEsterno}
             />
           )}
           {s.tab === 'stats' && <StatsTab v={v} s={s} onClearPoint={onClearPoint} />}
+          {s.tab === 'compare' && (
+            <CompareTab
+              s={s} v={v}
+              onSetCompareLevel={onSetCompareLevel}
+              onSetCompareMuni={onSetCompareMuni}
+              onSetCompareZone={onSetCompareZone}
+              onSetCompareFraz={onSetCompareFraz}
+              onSetCompareComuneEsterno={onSetCompareComuneEsterno}
+              onSetCompareRadius={onSetCompareRadius}
+            />
+          )}
         </div>
       </div>
     </div>

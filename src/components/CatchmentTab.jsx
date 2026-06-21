@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { css } from '../utils/css.js';
 import { segStyle, co2Pill, rowStyle, pill } from '../utils/styles.js';
+import AreaSelector from './AreaSelector.jsx';
 
-export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetAreaLevel, onSetAreaMuni, onSetAreaZone, onSetFraz, onSetRadius, onToggleDir, onToggleCo2, onToggle, onNevralgico }) {
+export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetAreaLevel, onSetAreaMuni, onSetAreaZone, onSetFraz, onSetRadius, onToggleDir, onToggleCo2, onToggle, onNevralgico, onSetAreaComuneEsterno }) {
   const [poliOpen, setPoliOpen] = useState(false);
   return (
     <div style={css('padding:16px;display:flex;flex-direction:column;gap:16px;')}>
@@ -83,46 +84,27 @@ export default function CatchmentTab({ s, v, bothGradStr, onSetCatchMode, onSetA
       )}
 
       {s.catchMode === 'area' && (
-        <div style={css('display:flex;flex-direction:column;gap:13px;')}>
-          <div>
-            <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>Ambito (livello)</div>
-            <select onChange={(e) => onSetAreaLevel(e.target.value)} value={s.areaLevel} style={css('width:100%;height:36px;border:1px solid #c5c7c9;border-radius:4px;padding:0 9px;font-family:inherit;font-size:14px;color:#17324d;background:#fff;cursor:pointer;')}>
-              <option value="">— scegli un livello —</option>
-              <option value="comune">Comune di Roma</option>
-              <option value="municipio">Municipi di Roma</option>
-              <option value="zona">Quartieri</option>
-              <option value="frazione">Punto dell'area metropolitana</option>
-            </select>
-          </div>
-          {(s.areaLevel === 'municipio' || s.areaLevel === 'zona') && (
-            <div>
-              <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>{s.areaLevel === 'zona' ? 'Filtra per municipio (opzionale)' : 'Seleziona municipio'}</div>
-              <select onChange={(e) => onSetAreaMuni(e.target.value)} value={String(s.areaMuni)} style={css('width:100%;height:36px;border:1px solid #c5c7c9;border-radius:4px;padding:0 9px;font-family:inherit;font-size:14px;color:#17324d;background:#fff;cursor:pointer;')}>
-                <option value="0">{s.areaLevel === 'zona' ? 'Tutti i municipi' : '— scegli un municipio —'}</option>
-                {v.municipiOptions.map((o) => <option key={o.n} value={o.n}>{o.label}</option>)}
-              </select>
-            </div>
-          )}
-          {s.areaLevel === 'zona' && (
-            <div>
-              <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>Zona / Rione / Quartiere</div>
-              <select onChange={(e) => onSetAreaZone(e.target.value)} value={String(s.areaZone)} style={css('width:100%;height:36px;border:1px solid #c5c7c9;border-radius:4px;padding:0 9px;font-family:inherit;font-size:14px;color:#17324d;background:#fff;cursor:pointer;')}>
-                <option value="-1">— scegli una zona ({v.zoneCount}) —</option>
-                {v.zoneOptions.map((z) => <option key={z.id} value={z.id}>{z.label}</option>)}
-              </select>
-            </div>
-          )}
-          {s.areaLevel === 'frazione' && (
-            <div>
-              <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>Frazione · raggio {v.radiusLabel}</div>
-              <select onChange={(e) => onSetFraz(e.target.value)} value={String(s.frazId)} style={css('width:100%;height:36px;border:1px solid #c5c7c9;border-radius:4px;padding:0 9px;font-family:inherit;font-size:14px;color:#17324d;background:#fff;cursor:pointer;')}>
-                <option value="-1">— scegli una frazione ({v.frazCount}) —</option>
-                {v.frazOptions.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-              </select>
-              <input type="range" min="0.2" max="10" step="0.1" value={s.radiusKm} onChange={(e) => onSetRadius(e.target.value)} style={{ marginTop: '9px' }} />
-            </div>
-          )}
-        </div>
+        <AreaSelector
+          level={s.areaLevel}
+          muni={s.areaMuni}
+          zone={s.areaZone}
+          frazId={s.frazId}
+          comuneId={s.comuneEsternoId}
+          radiusKm={s.radiusKm}
+          municipiOptions={v.municipiOptions}
+          zoneOptions={v.zoneOptions}
+          frazOptions={v.frazOptions}
+          comuniOptions={v.comuniEsterniOptions || []}
+          levels={['capitale', 'municipio', 'zona', 'frazione', 'comune_esterno']}
+          accentColor="#003366"
+          mapHint
+          onSetLevel={onSetAreaLevel}
+          onSetMuni={onSetAreaMuni}
+          onSetZone={onSetAreaZone}
+          onSetFraz={onSetFraz}
+          onSetRadius={onSetRadius}
+          onSetComune={onSetAreaComuneEsterno}
+        />
       )}
 
     </div>

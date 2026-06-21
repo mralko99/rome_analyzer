@@ -1,9 +1,11 @@
 import React from 'react';
 import maplibregl from 'maplibre-gl';
 import { MapboxOverlay } from '@deck.gl/mapbox';
-import { H3HexagonLayer } from '@deck.gl/geo-layers';
-import { GeoJsonLayer, ArcLayer, ScatterplotLayer, PolygonLayer, TextLayer } from '@deck.gl/layers';
+import buildLayers from './layers/buildLayers.js';
+import { hexTooltipHtml, connTooltipHtml, internalTooltipHtml, nevralgicTooltipHtml, comuneTooltipHtml, ttStyle } from './utils/tooltipContent.js';
+import { getLocationName } from './utils/locationName.js';
 import { css, B } from './utils/css.js';
+import { buildCompareSelection, computeCompareCatchment, buildCompareViewModel, computeCompareChartsData } from './utils/compareUtils.js';
 import PUNTI_NEVRALGICI, { nevralgicoColor } from './data/puntiNevralgici.js';
 import AppHeader from './components/AppHeader.jsx';
 import MapView from './components/MapView.jsx';
@@ -28,8 +30,11 @@ export default class App extends React.Component {
       heatColors: { out: null, inc: null, co2: null, internal: null },
       panelOpen: true, tab: 'settings',
       catchMode: 'radius', catchFlags: { in: true, out: true, internal: true }, catchCo2: false, radiusKm: 0.6,
-      areaLevel: '', areaMuni: 0, areaZone: -1, frazId: -1,
+      areaLevel: '', areaMuni: 0, areaZone: -1, frazId: -1, comuneEsternoId: -1,
       hasPoint: false, ptLng: 0, ptLat: 0,
+      compareEnabled: false, compareLevel: '', compareMuni: 0, compareZone: -1,
+      compareFrazId: -1, compareComuneEsternoId: -1, compareRadiusKm: 0.6,
+      compareHasPoint: false, comparePtLng: 0, comparePtLat: 0,
     };
     this.RAMPS = {
       navy: [[219,234,254],[147,196,245],[67,146,224],[0,77,153],[0,40,80]],
@@ -80,6 +85,10 @@ export default class App extends React.Component {
       this.data = { cells, metrics, panels, municipi, zone, frazioni };
       this.quartieriGeo = quartieriGeo;
       this.comuniGeo = comuniGeo;
+      this.comuniBboxes = (comuniGeo.features || []).map((f) => { const geom = f.geometry; let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity; const scan = (ring) => ring.forEach(([x, y]) => { if (x < minX) minX = x; if (y < minY) minY = y; if (x > maxX) maxX = x; if (y > maxY) maxY = y; }); if (geom.type === 'Polygon') { if (geom.coordinates[0]) scan(geom.coordinates[0]); } else if (geom.type === 'MultiPolygon') { geom.coordinates.forEach((poly) => { if (poly[0]) scan(poly[0]); }); } return [minX, minY, maxX, maxY]; });
+      const _cbBox = (x, y, b) => x >= b[0] && x <= b[2] && y >= b[1] && y <= b[3];
+      this.cellComune = {};
+      for (let id = 1; id <= cells.maxId; id++) { if (!cells.h3[id] || cells.muni[id]) continue; const x = cells.lng[id], y = cells.lat[id]; for (let ci = 0; ci < comuniGeo.features.length; ci++) { if (!this.comuniBboxes[ci] || !_cbBox(x, y, this.comuniBboxes[ci])) continue; const geom = comuniGeo.features[ci].geometry; const inside = geom.type === 'Polygon' ? this.pip(x, y, geom.coordinates[0]) : geom.coordinates.some((poly) => this.pip(x, y, poly[0])); if (inside) { this.cellComune[id] = comuniGeo.features[ci].properties.name || null; break; } } }
       this.comuniLabelData = (comuniGeo.features || []).map((f) => { const c = f.geometry; let pos; if (c.type === 'Polygon') { const ring = c.coordinates[0]; let sx = 0, sy = 0; ring.forEach(([x, y]) => { sx += x; sy += y; }); pos = [sx / ring.length, sy / ring.length]; } else if (c.type === 'MultiPolygon') { let sx = 0, sy = 0, cnt = 0; c.coordinates[0][0].forEach(([x, y]) => { sx += x; sy += y; cnt++; }); pos = [sx / cnt, sy / cnt]; } else { pos = [0, 0]; } return { position: pos, text: f.properties.name || '' }; }).filter((d) => d.text);
       this.etichetteLabelData = zone.map((z) => ({ position: [z.cx, z.cy], text: z.name }));
       const bin = atob(b64.trim()); const bytes = new Uint8Array(bin.length);
@@ -109,7 +118,17 @@ export default class App extends React.Component {
     this.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     this.overlay = new MapboxOverlay({ interleaved: true, layers: [], getTooltip: (i) => this.tooltip(i) });
     this.map.addControl(this.overlay);
-    this.map.on('click', (e) => { if (this._nevClick) { this._nevClick = false; return; } const _s = this.state; if (_s.catchMode === 'scroll') return; if (_s.catchMode === 'area') { this.setPointInArea(e.lngLat.lng, e.lngLat.lat); } else { this.setPoint(e.lngLat.lng, e.lngLat.lat); } });
+    this.map.on('click', (e) => {
+      if (this._nevClick) { this._nevClick = false; return; }
+      const _s = this.state, lng = e.lngLat.lng, lat = e.lngLat.lat;
+      if (_s.tab === 'compare') {
+        if (_s.compareLevel === 'punto') this.setComparePoint(lng, lat);
+        else if (_s.compareLevel && _s.compareLevel !== 'capitale') this.setComparePointInArea(lng, lat);
+        return;
+      }
+      if (_s.catchMode === 'scroll') return;
+      if (_s.catchMode === 'area') { this.setPointInArea(lng, lat); } else { this.setPoint(lng, lat); }
+    });
     this.map.on('load', () => { if (this.allMuniBbox) { const _b = this.allMuniBbox; this.map.fitBounds([[_b[0], _b[1]], [_b[2], _b[3]]], { padding: 45, animate: false }); } this.updateLayers(); this.updateLegend(); });
     this.map.on('zoomend', () => this.refresh());
     this.applyPanel();
@@ -156,6 +175,29 @@ export default class App extends React.Component {
       const z = this.zoneById[s.areaZone]; if (!z) return null;
       for (let id = 1; id <= cells.maxId; id++) { if (!cells.h3[id]) continue; const x = cells.lng[id], y = cells.lat[id]; if (!inBox(x, y, z.bbox)) continue; if (this.pipR(x, y, z.rings)) { mem[id] = 1; count++; } }
       hub = [z.cx, z.cy]; label = z.name; kind = z.tipo + (z.muni ? ' · ' + (this.muniName[z.muni] || '') : ''); sub = count + ' celle'; polyRings = z.rings;
+    } else if (s.areaLevel === 'comune_esterno') {
+      if (s.comuneEsternoId === 'ROMA') {
+        for (let id = 1; id <= cells.maxId; id++) if (cells.muni[id]) { mem[id] = 1; count++; }
+        hub = this.romaCentroid; label = 'Comune di Roma'; kind = 'Tutti i 15 municipi'; sub = count + ' celle nei municipi';
+      } else {
+      if (s.comuneEsternoId < 0 || !this.comuniGeo) return null;
+      const feat = this.comuniGeo.features[s.comuneEsternoId]; if (!feat) return null;
+      const geom = feat.geometry;
+      let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
+      const refRing = geom.type === 'Polygon' ? geom.coordinates[0] : geom.coordinates[0][0];
+      refRing.forEach(([x, y]) => { if (x < bx0) bx0 = x; if (y < by0) by0 = y; if (x > bx1) bx1 = x; if (y > by1) by1 = y; });
+      const bbox = [bx0, by0, bx1, by1];
+      for (let id = 1; id <= cells.maxId; id++) {
+        if (!cells.h3[id]) continue;
+        const x = cells.lng[id], y = cells.lat[id];
+        if (!inBox(x, y, bbox)) continue;
+        const inside = geom.type === 'Polygon' ? this.pip(x, y, geom.coordinates[0]) : geom.coordinates.some((poly) => this.pip(x, y, poly[0]));
+        if (inside) { mem[id] = 1; count++; }
+      }
+      const centroid = this.comuniLabelData[s.comuneEsternoId]?.position || [(bx0 + bx1) / 2, (by0 + by1) / 2];
+      hub = centroid; label = feat.properties.name || 'Comune'; kind = 'Comune (Prov. Roma)'; sub = count + ' celle periurbane';
+      polyRings = geom.type === 'Polygon' ? [geom.coordinates[0]] : geom.coordinates.map((poly) => poly[0]);
+      }
     } else return null;
     return { mem, count, hub, label, kind, sub, polyRings, circle };
   }
@@ -173,71 +215,61 @@ export default class App extends React.Component {
     this.cat = { inMap, outMap, co2In, co2Out, totIn, totOut, totCo2In, totCo2Out, intra, count: sel.count, mem: sel.mem, hub, label: sel.label, kind: sel.kind, sub: sel.sub, polyRings: sel.polyRings, circle: sel.circle };
   }
 
+  computeCompareB() {
+    if (!this.data) { this.catB = null; return; }
+    const helpers = {
+      hav:             (...a) => this.hav(...a),
+      pipR:            (...a) => this.pipR(...a),
+      pip:             (...a) => this.pip(...a),
+      muniName:        this.muniName,
+      muniCentroid:    this.muniCentroid,
+      muniRings:       this.muniRings,
+      zoneById:        this.zoneById,
+      gridCenter:      this.gridCenter,
+      comuniGeo:       this.comuniGeo,
+      comuniBboxes:    this.comuniBboxes,
+      romaCentroid:    this.romaCentroid,
+      comuniLabelData: this.comuniLabelData,
+    };
+    const sel = buildCompareSelection(this.state, this.data, helpers);
+    if (!sel) { this.catB = null; this.refresh(); this.forceUpdate(); return; }
+    this.catB = computeCompareCatchment(sel, this.data.cells, this.od, this.odN, this.EF, (...a) => this.hav(...a));
+    this.refresh();
+    this.forceUpdate();
+  }
+
   connValue(id) { const c = this.cat, f = this.state.catchFlags, co2 = this.state.catchCo2; if (!f.in && !f.out) return 0; if (co2) { if (f.in && f.out) return (c.co2In[id] || 0) + (c.co2Out[id] || 0); if (f.in) return c.co2In[id] || 0; return c.co2Out[id] || 0; } if (f.in && f.out) return (c.inMap[id] || 0) + (c.outMap[id] || 0); if (f.in) return c.inMap[id] || 0; return c.outMap[id] || 0; }
 
   updateLayers() {
     if (!this.overlay || !this.data) return;
-    const s = this.state, layers = [], dark = s.basemap === 'dark';
-    if (s.heatmap || s.grid) layers.push(new H3HexagonLayer({
-      id: 'hex', data: this.hexData, getHexagon: (d) => d.h3, extruded: false, filled: s.heatmap, stroked: s.grid,
-      getFillColor: (d) => this.cityColor(d.id), getLineColor: dark ? [255, 255, 255, 30] : [23, 50, 77, 32], lineWidthMinPixels: 0.5, getLineWidth: 1,
-      pickable: true, autoHighlight: true, highlightColor: [0, 102, 204, 90],
-      updateTriggers: { getFillColor: [s.metric, s.filterMuni, s.heatmap, JSON.stringify(s.heatColors)] },
-    }));
-    if (s.mode === 'catchment' && s.catchCo2 && s.tab === 'catchment') layers.push(new H3HexagonLayer({
-      id: 'hex-co2', data: this.hexData, getHexagon: (d) => d.h3, extruded: false, filled: true, stroked: false,
-      getFillColor: (d) => this.cityColor(d.id, 'co2'), getLineColor: [0, 0, 0, 0], lineWidthMinPixels: 0,
-      pickable: false,
-      updateTriggers: { getFillColor: [s.catchCo2, s.tab] },
-    }));
-    if (this.cat) {
-      const c = this.data.cells, f = s.catchFlags;
-      if (f.in || f.out) {
-        const conn = [], keys = {};
-        if (f.in) Object.keys(this.cat.inMap).forEach((k) => (keys[k] = 1));
-        if (f.out) Object.keys(this.cat.outMap).forEach((k) => (keys[k] = 1));
-        let vmax = 1; Object.keys(keys).forEach((id) => { const v = this.connValue(+id); if (v > vmax) vmax = v; if (c.h3[id]) conn.push({ id: +id, h3: c.h3[id], v }); });
-        this.connInfo = { vmax }; const vlog = Math.log(1 + vmax);
-        const cStops = this.catchStops(), aStops = this.stopsForMetric('inc'), tStops = this.stopsForMetric('out'), both = f.in && f.out;
-        layers.push(new H3HexagonLayer({
-          id: 'conn', data: conn, getHexagon: (d) => d.h3, extruded: false, filled: true, stroked: false,
-          getFillColor: (d) => {
-            let t = Math.log(1 + d.v) / vlog; if (t > 1) t = 1; if (t < 0.05) t = 0.05;
-            if (!both) { const col = this.ramp(t, cStops); return [col[0], col[1], col[2], 225]; }
-            const iv = this.cat.inMap[d.id] || 0, ov = this.cat.outMap[d.id] || 0, tot = iv + ov, ratio = tot ? ov / tot : 0.5;
-            const col = this.mix(this.ramp(t, aStops), this.ramp(t, tStops), ratio).map(Math.round); return [col[0], col[1], col[2], 225];
-          },
-          pickable: true, autoHighlight: true, highlightColor: [0, 102, 204, 80],
-          updateTriggers: { getFillColor: [JSON.stringify(f), JSON.stringify(s.heatColors), s.areaLevel, s.areaMuni, s.areaZone, s.frazId, s.radiusKm, s.ptLat] },
-        }));
-        const hub = this.cat.hub, top = conn.slice().sort((a, b) => b.v - a.v).slice(0, 28), tf = top.length ? top[0].v : 1, arcsIn = [], arcsOut = [];
-        top.forEach((t) => { const cell = [c.lng[t.id], c.lat[t.id]], iv = this.cat.inMap[t.id] || 0, ov = this.cat.outMap[t.id] || 0; if (f.in && iv) arcsIn.push({ from: cell, to: hub, f: iv }); if (f.out && ov) arcsOut.push({ from: hub, to: cell, f: ov }); });
-        if (arcsIn.length) layers.push(new ArcLayer({ id: 'arcin', data: arcsIn, getSourcePosition: (d) => d.from, getTargetPosition: (d) => d.to, getSourceColor: [204, 122, 0, 70], getTargetColor: [204, 122, 0, 240], getWidth: (d) => 1 + (d.f / tf) * 8, widthUnits: 'pixels', getHeight: 0 }));
-        if (arcsOut.length) layers.push(new ArcLayer({ id: 'arcout', data: arcsOut, getSourcePosition: (d) => d.from, getTargetPosition: (d) => d.to, getSourceColor: [7, 127, 123, 240], getTargetColor: [11, 203, 197, 70], getWidth: (d) => 1 + (d.f / tf) * 8, widthUnits: 'pixels', getHeight: 0 }));
-      }
-      if (f.internal) {
-        const intData = [], intMet = this.data.metrics.internal, intVmax = this.vmax.internal, intStops = this.stopsForMetric('internal'), intVlog = Math.log(1 + intVmax);
-        for (let id = 1; id <= c.maxId; id++) { if (this.cat.mem[id] && c.h3[id]) intData.push({ id, h3: c.h3[id] }); }
-        layers.push(new H3HexagonLayer({
-          id: 'internal', data: intData, getHexagon: (d) => d.h3, extruded: false, filled: true, stroked: false,
-          getFillColor: (d) => { const v = intMet[d.id] || 0; if (!(v > 0)) return [0, 0, 0, 0]; let t = Math.log(1 + v) / intVlog; if (t > 1) t = 1; const col = this.ramp(t, intStops); return [col[0], col[1], col[2], 200]; },
-          pickable: true, autoHighlight: true, highlightColor: [0, 102, 204, 80],
-          updateTriggers: { getFillColor: [JSON.stringify(s.heatColors), s.areaLevel, s.areaMuni, s.areaZone, s.frazId, s.radiusKm, s.ptLat] },
-        }));
-      }
-      if (this.cat.polyRings) layers.push(new GeoJsonLayer({ id: 'areafill', data: { type: 'FeatureCollection', features: this.cat.polyRings.map((r) => ({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [r] } })) }, stroked: true, filled: true, getFillColor: [0, 51, 102, 24], getLineColor: [0, 51, 102, 235], getLineWidth: 2.5, lineWidthUnits: 'pixels' }));
-      else if (this.cat.circle) layers.push(new PolygonLayer({ id: 'circle', data: [{ polygon: this.circlePoly(this.cat.circle.lng, this.cat.circle.lat, this.cat.circle.km) }], getPolygon: (d) => d.polygon, filled: true, stroked: true, getFillColor: [0, 51, 102, 18], getLineColor: [0, 51, 102, 200], getLineWidth: 2, lineWidthUnits: 'pixels' }));
-      layers.push(new ScatterplotLayer({ id: 'hub', data: [{ p: this.cat.hub }], getPosition: (d) => d.p, getFillColor: [255, 200, 0], getRadius: 8, radiusUnits: 'pixels', stroked: true, getLineColor: [0, 51, 102], lineWidthMinPixels: 2.5 }));
-    }
-    if (s.showMuniBounds) { const mb = this.hex2rgb(s.muniBorderColor); layers.push(new GeoJsonLayer({ id: 'bounds', data: this.boundaryGeo, stroked: true, filled: false, getLineColor: (f) => (s.filterMuni && f.properties.n === s.filterMuni) ? [204, 122, 0, 255] : [...mb, 220], getLineWidth: (f) => (s.filterMuni && f.properties.n === s.filterMuni) ? Math.max(s.muniBorderWidth, 2.5) : s.muniBorderWidth, lineWidthUnits: 'pixels', lineWidthMinPixels: 1, updateTriggers: { getLineColor: [s.filterMuni, s.muniBorderColor], getLineWidth: [s.filterMuni, s.muniBorderWidth] } })); }
-    if (s.showMuniLabels && this.muniLabelData && this.muniLabelData.length) { const ml = this.hex2rgb(s.muniLabelColor); layers.push(new TextLayer({ id: 'munilabels', data: this.muniLabelData, getPosition: (d) => d.position, getText: (d) => d.text, getSize: s.muniLabelSize, getColor: [...ml, 235], getBackgroundColor: dark ? [0, 0, 0, 190] : [255, 255, 255, 210], background: true, backgroundPadding: [5, 3], fontWeight: 700, fontFamily: "'Titillium Web',sans-serif", billboard: false, sizeUnits: 'pixels', getTextAnchor: 'middle', getAlignmentBaseline: 'center', updateTriggers: { getColor: [s.muniLabelColor], getSize: [s.muniLabelSize], getBackgroundColor: [s.basemap] } })); }
-    if (s.showQuartieriBounds && this.quartieriGeo) { const qb = this.hex2rgb(s.quartieriBorderColor); layers.push(new GeoJsonLayer({ id: 'quartieri-bounds', data: this.quartieriGeo, stroked: true, filled: false, getLineColor: [...qb, 180], getLineWidth: s.quartieriBorderWidth, lineWidthUnits: 'pixels', lineWidthMinPixels: 0.5, updateTriggers: { getLineColor: [s.quartieriBorderColor], getLineWidth: [s.quartieriBorderWidth] } })); }
-    if (s.showQuartieriLabels && this.etichetteLabelData) { const ql = this.hex2rgb(s.quartieriLabelColor); layers.push(new TextLayer({ id: 'quartieriLabels', data: this.etichetteLabelData, getPosition: (d) => d.position, getText: (d) => d.text, getSize: s.quartieriLabelSize, getColor: [...ql, 220], getBackgroundColor: dark ? [0, 0, 0, 170] : [240, 245, 255, 200], background: true, backgroundPadding: [4, 2], fontFamily: "'Titillium Web',sans-serif", fontWeight: 600, billboard: false, sizeUnits: 'pixels', getTextAnchor: 'middle', getAlignmentBaseline: 'center', updateTriggers: { getColor: [s.quartieriLabelColor], getSize: [s.quartieriLabelSize], getBackgroundColor: [s.basemap] } })); }
-    if (s.showFrazioni && this.frazLabelData) { const fl = this.hex2rgb(s.frazLabelColor); const _fzoom = this.map ? this.map.getZoom() : 9; if (_fzoom >= 11) layers.push(new TextLayer({ id: 'frazlabels', data: this.frazLabelData, getPosition: (d) => d.position, getText: (d) => d.text, getSize: s.frazLabelSize, getColor: [...fl, 230], getBackgroundColor: dark ? [0, 0, 0, 180] : [240, 255, 253, 215], background: true, backgroundPadding: [4, 2], fontFamily: "'Titillium Web',sans-serif", fontWeight: 600, billboard: false, sizeUnits: 'pixels', getTextAnchor: 'middle', getAlignmentBaseline: 'center', updateTriggers: { getColor: [s.frazLabelColor], getSize: [s.frazLabelSize], getBackgroundColor: [s.basemap] } })); }
-    if (s.showComuniBounds && this.comuniGeo) { const bc = this.hex2rgb(s.comuniBorderColor); layers.push(new GeoJsonLayer({ id: 'comuni-bounds', data: this.comuniGeo, stroked: true, filled: false, pickable: true, autoHighlight: true, highlightColor: [...this.hex2rgb(s.comuniBorderColor), 60], getLineColor: [...bc, 220], getLineWidth: s.comuniBorderWidth, lineWidthUnits: 'pixels', lineWidthMinPixels: 1, updateTriggers: { getLineColor: [s.comuniBorderColor], getLineWidth: [s.comuniBorderWidth] } })); }
-    if (s.showComuniLabels && this.comuniLabelData) { const lc = this.hex2rgb(s.comuniLabelColor); layers.push(new TextLayer({ id: 'comuni-labels', data: this.comuniLabelData, getPosition: (d) => d.position, getText: (d) => d.text, getSize: s.comuniLabelSize, getColor: [...lc, 235], getBackgroundColor: dark ? [10, 0, 30, 185] : [255, 255, 255, 215], background: true, backgroundPadding: [4, 2], fontFamily: "'Titillium Web',sans-serif", fontWeight: 600, billboard: false, sizeUnits: 'pixels', getTextAnchor: 'middle', getAlignmentBaseline: 'center', updateTriggers: { getColor: [s.comuniLabelColor, s.basemap], getSize: [s.comuniLabelSize], getBackgroundColor: [s.basemap] } })); }
-    if (s.showNevralgic) layers.push(new ScatterplotLayer({ id: 'nevralgic', data: PUNTI_NEVRALGICI, getPosition: (d) => [d.longitudine, d.latitudine], getFillColor: (d) => nevralgicoColor(d.tipologia), getLineColor: [255, 255, 255], getRadius: 9, radiusUnits: 'pixels', stroked: true, lineWidthMinPixels: 2, pickable: true, autoHighlight: true, highlightColor: [255, 240, 150, 120], onClick: (info) => { if (info.object) this.setNevralgicPoint(info.object); } }));
+    const { layers, connInfo } = buildLayers(this._layerCtx());
+    this.connInfo = connInfo;
     this.overlay.setProps({ layers });
+  }
+
+  _layerCtx() {
+    return {
+      s: this.state,
+      data: this.data,
+      computed: {
+        hexData: this.hexData, cat: this.cat, catB: this.catB, vmax: this.vmax, comuniGeo: this.comuniGeo,
+        boundaryGeo: this.boundaryGeo, quartieriGeo: this.quartieriGeo,
+        etichetteLabelData: this.etichetteLabelData, comuniLabelData: this.comuniLabelData,
+        muniLabelData: this.muniLabelData, frazLabelData: this.frazLabelData,
+        mapZoom: this.map ? this.map.getZoom() : 9,
+      },
+      colors: {
+        cityColor: (id, m) => this.cityColor(id, m),
+        ramp: (t, stops) => this.ramp(t, stops),
+        hex2rgb: (h) => this.hex2rgb(h),
+        stopsForMetric: (m) => this.stopsForMetric(m),
+        catchStops: () => this.catchStops(),
+        mix: (a, b, t) => this.mix(a, b, t),
+        connValue: (id) => this.connValue(id),
+      },
+      geo: { circlePoly: (lng, lat, km) => this.circlePoly(lng, lat, km) },
+      onNevralgicClick: (p) => this.setNevralgicPoint(p),
+    };
   }
 
   setNevralgicPoint(p) {
@@ -270,14 +302,15 @@ export default class App extends React.Component {
   }
 
   tooltip({ object, layer }) {
-    if (!object || !layer) return null; const fmt = (n) => Math.round(n).toLocaleString('it-IT');
-    if (layer.id === 'hex') { const id = object.id, m = this.data.metrics, c = this.data.cells; const mn = this.zoneNameAtZoom(id); return { html: `<div style="font-family:'Titillium Web',sans-serif;min-width:150px"><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;opacity:.6;margin-bottom:2px">${mn}</div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Uscenti</span><b>${fmt(m.out[id] || 0)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Entranti</span><b>${fmt(m.inc[id] || 0)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Interni</span><b>${fmt(m.internal[id] || 0)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>CO₂ t/g</span><b>${(m.co2[id] || 0).toFixed(2)}</b></div></div>`, style: this.ttStyle() }; }
-    if (layer.id === 'conn') { const c = this.data.cells, mn = c.muni[object.id] ? (this.muniName[c.muni[object.id]] || '') : 'Area periurbana'; const kg = (g) => (g / 1000).toLocaleString('it-IT', { maximumFractionDigits: 0 }); return { html: `<div style="font-family:'Titillium Web',sans-serif;min-width:160px"><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;opacity:.6;margin-bottom:2px">${mn}</div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Verso il bacino</span><b>${fmt(this.cat.inMap[object.id] || 0)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px"><span>Dal bacino</span><b>${fmt(this.cat.outMap[object.id] || 0)}</b></div><div style="display:flex;justify-content:space-between;gap:14px;font-size:12px;opacity:.8"><span>CO₂ kg/g</span><b>${kg((this.cat.co2In[object.id] || 0) + (this.cat.co2Out[object.id] || 0))}</b></div></div>`, style: this.ttStyle() }; }
-    if (layer.id === 'nevralgic') { const p = object; return { html: `<div style="font-family:'Titillium Web',sans-serif;max-width:220px"><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;opacity:.6;margin-bottom:3px">${p.tipologia}</div><div style="font-size:13px;font-weight:700;margin-bottom:5px">${p.nome}</div><div style="font-size:11px;opacity:.85;line-height:1.4">${p.note}</div><div style="font-size:10px;opacity:.5;margin-top:4px">Raggio bacino: ${p.raggio_cattura_km} km · clicca per analizzare</div></div>`, style: this.ttStyle() }; }
-    if (layer.id === 'comuni-bounds') { const p = object.properties || {}; const istat = p.istat ? `<div style="display:flex;justify-content:space-between;gap:14px;font-size:11px;opacity:.7"><span>ISTAT</span><b>${p.istat}</b></div>` : ''; const pop = p.popolazione ? `<div style="display:flex;justify-content:space-between;gap:14px;font-size:11px;opacity:.7"><span>Popolazione</span><b>${Number(p.popolazione).toLocaleString('it-IT')}</b></div>` : ''; return { html: `<div style="font-family:'Titillium Web',sans-serif;min-width:150px"><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;opacity:.6;margin-bottom:3px">Comune</div><div style="font-size:13px;font-weight:700;margin-bottom:4px">${p.name || ''}</div>${istat}${pop}</div>`, style: this.ttStyle() }; }
+    if (!object || !layer) return null;
+    const { cells } = this.data, muniName = this.muniName, cellComune = this.cellComune || {};
+    if (layer.id === 'hex') { const id = object.id, m = this.data.metrics; return { html: hexTooltipHtml({ locationName: this.zoneNameAtZoom(id), out: m.out[id], inc: m.inc[id], internal: m.internal[id], co2: m.co2[id] }), style: ttStyle }; }
+    if (layer.id === 'conn') { const id = object.id, cat = this.cat; return { html: connTooltipHtml({ locationName: getLocationName(id, cells, muniName, cellComune), inFlow: cat.inMap[id] || 0, outFlow: cat.outMap[id] || 0, co2g: (cat.co2In[id] || 0) + (cat.co2Out[id] || 0) }), style: ttStyle }; }
+    if (layer.id === 'internal') { const id = object.id; return { html: internalTooltipHtml({ locationName: getLocationName(id, cells, muniName, cellComune), internalTrips: this.data.metrics.internal[id] || 0 }), style: ttStyle }; }
+    if (layer.id === 'nevralgic') { const p = object; return { html: nevralgicTooltipHtml({ tipologia: p.tipologia, nome: p.nome, noteTxt: p.note, raggio: p.raggio_cattura_km }), style: ttStyle }; }
+    if (layer.id === 'comuni-bounds') { const p = object.properties || {}; return { html: comuneTooltipHtml({ name: p.name, istat: p.istat, popolazione: p.popolazione, selectable: this.state.areaLevel === 'comune_esterno' }), style: ttStyle }; }
     return null;
   }
-  ttStyle() { return { background: '#003366', color: '#fff', padding: '8px 11px', borderRadius: '4px', boxShadow: '0 8px 16px rgba(0,0,0,.2)', fontSize: '12px' }; }
 
   refresh() { this.updateLayers(); this.updateLegend(); this.updateColorPreview(); }
   setMetric(m) { this.setState({ metric: m }, () => this.refresh()); }
@@ -307,14 +340,57 @@ export default class App extends React.Component {
       let best = -1, bd = Infinity;
       this.data.frazioni.forEach((f, i) => { const d = this.hav(lat, lng, f.lat, f.lng); if (d < bd) { bd = d; best = i; } });
       if (best >= 0) this.setFraz(best);
+    } else if (s.areaLevel === 'comune_esterno') {
+      if (!this.comuniGeo) return;
+      const inBox = (x, y, b) => x >= b[0] && x <= b[2] && y >= b[1] && y <= b[3];
+      const features = this.comuniGeo.features;
+      for (let i = 0; i < features.length; i++) {
+        if (!this.comuniBboxes[i] || !inBox(lng, lat, this.comuniBboxes[i])) continue;
+        const geom = features[i].geometry;
+        const inside = geom.type === 'Polygon' ? this.pip(lng, lat, geom.coordinates[0]) : geom.coordinates.some((poly) => this.pip(lng, lat, poly[0]));
+        if (inside) { this.setAreaComuneEsterno(i); return; }
+      }
     }
   }
   setRadius(v) { this.setState({ radiusKm: +v }); clearTimeout(this._rt); this._rt = setTimeout(() => { if (this.cat && this.cat.circle) { this.computeCatchment(); this.refresh(); } }, 130); }
   setCatchMode(m) { this.cat = null; this._ptName = null; this.setState({ catchMode: m, mode: 'city', hasPoint: false, areaLevel: '', areaMuni: 0, areaZone: -1, frazId: -1 }, () => this.refresh()); }
-  setAreaLevel(v) { this.cat = null; this.setState({ areaLevel: v, mode: 'city', areaMuni: 0, areaZone: -1, frazId: -1 }, () => { if (v === 'capitale' || v === 'comune') { this.setState({ mode: 'catchment' }, () => { this.computeCatchment(); this.refresh(); }); if (this.map) this.map.flyTo({ center: this.gridCenter, zoom: v === 'capitale' ? 9.2 : 10, duration: 700 }); } else this.refresh(); }); }
+  setCompareLevel(v) { this.setState({ compareLevel: v, compareMuni: 0, compareZone: -1, compareFrazId: -1, compareComuneEsternoId: -1, compareHasPoint: false }, () => this.computeCompareB()); }
+  setCompareMuni(v) { this.setState({ compareMuni: +v, compareZone: -1 }, () => this.computeCompareB()); }
+  setCompareZone(v) { this.setState({ compareZone: +v }, () => this.computeCompareB()); }
+  setCompareFraz(v) { this.setState({ compareFrazId: +v }, () => this.computeCompareB()); }
+  setCompareComuneEsterno(v) { const id = v === 'ROMA' ? 'ROMA' : +v; this.setState({ compareComuneEsternoId: id }, () => this.computeCompareB()); }
+  setCompareRadius(v) { this.setState({ compareRadiusKm: +v }); clearTimeout(this._compareRt); this._compareRt = setTimeout(() => this.computeCompareB(), 130); }
+  setComparePoint(lng, lat) { this.setState({ compareLevel: 'punto', compareHasPoint: true, comparePtLng: lng, comparePtLat: lat }, () => this.computeCompareB()); }
+  setComparePointInArea(lng, lat) {
+    const s = this.state;
+    if (s.compareLevel === 'municipio') {
+      const c = this.data.cells; let mn = 0, bd = 1e9;
+      for (let id = 1; id <= c.maxId; id++) { if (!c.h3[id] || !c.muni[id]) continue; const d = this.hav(lat, lng, c.lat[id], c.lng[id]); if (d < bd) { bd = d; mn = c.muni[id]; } }
+      if (mn) this.setCompareMuni(mn);
+    } else if (s.compareLevel === 'zona') {
+      const inBox = (x, y, b) => x >= b[0] && x <= b[2] && y >= b[1] && y <= b[3];
+      for (const z of (this.data.zone || [])) { const zd = this.zoneById[z.id]; if (!zd || !zd.bbox || !zd.rings) continue; if (!inBox(lng, lat, zd.bbox)) continue; if (this.pipR(lng, lat, zd.rings)) { this.setCompareZone(z.id); return; } }
+    } else if (s.compareLevel === 'frazione') {
+      let best = -1, bd = Infinity;
+      this.data.frazioni.forEach((f, i) => { const d = this.hav(lat, lng, f.lat, f.lng); if (d < bd) { bd = d; best = i; } });
+      if (best >= 0) this.setCompareFraz(best);
+    } else if (s.compareLevel === 'comune_esterno') {
+      if (!this.comuniGeo) return;
+      const inBox = (x, y, b) => x >= b[0] && x <= b[2] && y >= b[1] && y <= b[3];
+      const features = this.comuniGeo.features;
+      for (let i = 0; i < features.length; i++) {
+        if (!this.comuniBboxes[i] || !inBox(lng, lat, this.comuniBboxes[i])) continue;
+        const geom = features[i].geometry;
+        const inside = geom.type === 'Polygon' ? this.pip(lng, lat, geom.coordinates[0]) : geom.coordinates.some((poly) => this.pip(lng, lat, poly[0]));
+        if (inside) { this.setCompareComuneEsterno(i); return; }
+      }
+    }
+  }
+  setAreaLevel(v) { this.cat = null; this.setState({ areaLevel: v, mode: 'city', areaMuni: 0, areaZone: -1, frazId: -1, comuneEsternoId: -1 }, () => { if (v === 'capitale' || v === 'comune') { this.setState({ mode: 'catchment' }, () => { this.computeCatchment(); this.refresh(); }); if (this.map) this.map.flyTo({ center: this.gridCenter, zoom: v === 'capitale' ? 9.2 : 10, duration: 700 }); } else this.refresh(); }); }
   setAreaMuni(v) { v = +v; const lvl = this.state.areaLevel; if (lvl === 'zona') { this.setState({ areaMuni: v, areaZone: -1 }, () => this.refresh()); return; } if (!v) { this.cat = null; this.setState({ areaMuni: 0, mode: 'city' }, () => this.refresh()); return; } this.setState({ areaMuni: v, mode: 'catchment' }, () => { this.computeCatchment(); this.refresh(); }); if (this.map && this.muniBbox[v]) { const b = this.muniBbox[v]; this.map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 70, duration: 700 }); } }
   setAreaZone(v) { v = +v; if (v < 0) { this.cat = null; this.setState({ areaZone: -1, mode: 'city' }, () => this.refresh()); return; } this.setState({ areaZone: v, mode: 'catchment' }, () => { this.computeCatchment(); this.refresh(); }); const z = this.zoneById[v]; if (this.map && z) { const b = z.bbox; this.map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 80, duration: 700 }); } }
   setFraz(v) { v = +v; if (v < 0) { this.cat = null; this.setState({ frazId: -1, mode: 'city' }, () => this.refresh()); return; } const fr = this.data.frazioni[v]; this.setState({ frazId: v, mode: 'catchment' }, () => { this.computeCatchment(); this.refresh(); }); if (this.map && fr) this.map.flyTo({ center: [fr.lng, fr.lat], zoom: 12, duration: 700 }); }
+  setAreaComuneEsterno(v) { if (v === 'ROMA') { this.setState({ comuneEsternoId: 'ROMA', mode: 'catchment' }, () => { this.computeCatchment(); this.refresh(); }); if (this.map && this.romaCentroid) this.map.flyTo({ center: this.romaCentroid, zoom: 10, duration: 700 }); return; } v = +v; if (v < 0) { this.cat = null; this.setState({ comuneEsternoId: -1, mode: 'city' }, () => this.refresh()); return; } this.setState({ comuneEsternoId: v, mode: 'catchment' }, () => { this.computeCatchment(); this.refresh(); }); const pos = this.comuniLabelData[v]?.position; if (this.map && pos) this.map.flyTo({ center: pos, zoom: 10, duration: 700 }); }
   clearPoint() { this.cat = null; this._ptName = null; this.setState({ hasPoint: false, areaMuni: 0, areaZone: -1, frazId: -1, mode: 'city' }, () => this.refresh()); }
 
   setPanel(open) { this.setState({ panelOpen: open }, () => { this.applyPanel(); setTimeout(() => this.map && this.map.resize(), 80); }); }
@@ -356,6 +432,8 @@ export default class App extends React.Component {
     const v = {
       legendTitle, legendMax, legendMin, legendUnit,
       municipiOptions: P ? P.municipi.slice().sort((a, b) => a.n - b.n).map((m) => ({ n: m.n, label: m.full.replace('Municipio Roma ', 'Municipio ') })) : [],
+      compareZoneOptions: (this.data ? (s.compareMuni ? this.data.zone.filter((z) => z.muni === s.compareMuni) : this.data.zone) : []).map((z) => ({ id: z.id, label: z.name + ' · ' + z.tipo + (z.muni ? ' (Mun. ' + (this.muniName[z.muni] || '').replace('Municipio Roma ', '') + ')' : '') })),
+      ...buildCompareViewModel(this.catB || null, this.data ? this.data.cells : null, this.muniName, s.catchCo2),
       heatModeName: Array.isArray(s.heatColors[s.metric]) ? 'Personalizzato' : 'Automatico',
       heatStops: s.heatColors[s.metric] || this.METRIC_DEFAULT_STOPS[s.metric],
       heatDefaultStops: this.METRIC_DEFAULT_STOPS[s.metric],
@@ -363,6 +441,7 @@ export default class App extends React.Component {
       zoneOptions: zoneFiltered.map((z) => ({ id: z.id, label: z.name + ' · ' + z.tipo + (z.muni ? ' (Mun. ' + (this.muniName[z.muni] || '').replace('Municipio Roma ', '') + ')' : '') })),
       zoneCount: zoneFiltered.length,
       frazOptions: this.data ? this.data.frazioni.map((f, i) => ({ id: i, name: f.name })) : [], frazCount: this.data ? this.data.frazioni.length : 0,
+      comuniEsterniOptions: [{ id: 'ROMA', name: 'Roma (Comune di Roma)' }, ...(this.comuniGeo ? this.comuniGeo.features.map((f, i) => ({ id: i, name: f.properties.name || `Comune ${i}` })) : [])],
       radiusLabel: s.radiusKm.toFixed(1).replace('.', ',') + ' km',
       noSelHint: s.catchMode === 'area' ? (s.areaLevel ? 'Completa la selezione qui sopra.' : 'Scegli un ambito dal menu qui sopra.') : 'Clicca sulla mappa o scegli un polo qui sopra.',
       inLabel: s.catchCo2 ? 'CO₂ ENTRATA · t/g' : 'IN ENTRATA · viaggi/g', outLabel: s.catchCo2 ? 'CO₂ USCITA · t/g' : 'IN USCITA · viaggi/g',
@@ -373,6 +452,13 @@ export default class App extends React.Component {
       puntiNevralgici: PUNTI_NEVRALGICI.map((p) => ({ ...p, color: nevralgicoColor(p.tipologia) })),
       hasCatchment: !!this.cat,
     };
+    // Memoised comparison charts — recompute only when cat / catB change
+    if (this.cat !== this._chartsCacheA || this.catB !== this._chartsCacheB) {
+      this._chartsCache  = this.cat ? computeCompareChartsData(this.cat, this.catB || null, this.data.cells, (...a) => this.hav(...a)) : null;
+      this._chartsCacheA = this.cat;
+      this._chartsCacheB = this.catB;
+    }
+    v.compareCharts = this._chartsCache;
     if (this.cat) {
       const c = this.data.cells, co2 = s.catchCo2;
       v.selName = this.cat.label; v.selSub = this.cat.sub; v.selKind = this.cat.kind;
@@ -453,12 +539,19 @@ export default class App extends React.Component {
             onSetAreaMuni={(v) => this.setAreaMuni(v)}
             onSetAreaZone={(v) => this.setAreaZone(v)}
             onSetFraz={(v) => this.setFraz(v)}
+            onSetAreaComuneEsterno={(v) => this.setAreaComuneEsterno(v)}
             onSetRadius={(v) => this.setRadius(v)}
             onToggleDir={(w) => this.toggleDir(w)}
             onToggleCo2={() => this.toggleCo2()}
             onClearPoint={() => this.clearPoint()}
             onNevralgico={(p) => this.setNevralgicPoint(p)}
             onSetLayerStyle={(k, v) => this.setLayerStyle(k, v)}
+            onSetCompareLevel={(v) => this.setCompareLevel(v)}
+            onSetCompareMuni={(v) => this.setCompareMuni(v)}
+            onSetCompareZone={(v) => this.setCompareZone(v)}
+            onSetCompareFraz={(v) => this.setCompareFraz(v)}
+            onSetCompareComuneEsterno={(v) => this.setCompareComuneEsterno(v)}
+            onSetCompareRadius={(v) => this.setCompareRadius(v)}
           />
         </div>
       </div>
