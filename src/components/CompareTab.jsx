@@ -75,13 +75,6 @@ export default function CompareTab({ s, v, onSetCompareLevel, onSetCompareMuni, 
         (s.compareLevel === 'frazione' && (s.compareFrazId ?? -1) >= 0) ||
         (s.compareLevel === 'punto' && s.compareHasPoint) ||
         (s.compareLevel === 'comune_esterno' && (s.compareComuneEsternoId ?? -1) !== -1)
-      ) && (
-        <div style={css('border:1px solid #c8e6c9;border-radius:6px;padding:11px 13px;background:#f1f8f1;display:flex;gap:9px;align-items:flex-start;')}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#008055" strokeWidth="2" style={{ flex: 'none', marginTop: '1px' }}><polyline points="20 6 9 17 4 12"/></svg>
-          <span style={css('font-size:12px;color:#005c35;line-height:1.45;')}>
-            Entrambe le aree configurate. I grafici comparativi sono visibili qui sotto.
-          </span>
-        </div>
       )}
     </div>
     <CompareCharts charts={v.compareCharts} />

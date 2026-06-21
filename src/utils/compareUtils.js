@@ -259,33 +259,15 @@ export function computeCompareChartsData(cat, catB, cells, hav) {
   const BIN_STEP = 0.5, MAX_DIST = 30, N_BINS = 60; // 0–30 km, 0.5 km/bin
   const binCenters = Array.from({ length: N_BINS }, (_, i) => (i + 0.5) * BIN_STEP);
 
-  // Bin + 5-point rolling average
-  const distSmooth = (flowMap, hub) => {
-    if (!flowMap || !hub) return new Array(N_BINS).fill(0);
+  // Raw binned distribution of a flow map by distance from hub (viaggi/g per fascia)
+  const binRaw = (flowMap, hub) => {
     const bins = new Array(N_BINS).fill(0);
+    if (!flowMap || !hub) return bins;
     for (const id in flowMap) {
       const d = hav(cells.lat[+id], cells.lng[+id], hub[1], hub[0]);
       bins[Math.min(Math.floor(d / BIN_STEP), N_BINS - 1)] += flowMap[id];
     }
-    return bins.map((_, i) => {
-      let s = 0, c = 0;
-      for (let j = Math.max(0, i - 2); j <= Math.min(N_BINS - 1, i + 2); j++) { s += bins[j]; c++; }
-      return s / c;
-    });
-  };
-
-  // Cumulative % by distance bin
-  const cdfFromMap = (flowMap, hub) => {
-    if (!flowMap || !hub) return new Array(N_BINS).fill(100);
-    const bins = new Array(N_BINS).fill(0);
-    for (const id in flowMap) {
-      const d = hav(cells.lat[+id], cells.lng[+id], hub[1], hub[0]);
-      bins[Math.min(Math.floor(d / BIN_STEP), N_BINS - 1)] += flowMap[id];
-    }
-    const tot = bins.reduce((s, v) => s + v, 0);
-    if (!tot) return new Array(N_BINS).fill(100);
-    let c = 0;
-    return bins.map(v => { c += v; return c / tot * 100; });
+    return bins;
   };
 
   const SW = [0, 5, 10, 15, 20, 25, 30, 40, 50];
@@ -294,13 +276,16 @@ export function computeCompareChartsData(cat, catB, cells, hav) {
     aLabel:   cat.label,
     bLabel:   catB ? catB.label : null,
     binCenters,
-    aIn:      distSmooth(cat.inMap,   cat.hub),
-    bIn:      catB ? distSmooth(catB.inMap,   catB.hub) : null,
-    aCDF:     cdfFromMap(cat.inMap,   cat.hub),
-    bCDF:     catB ? cdfFromMap(catB.inMap,   catB.hub) : null,
+    // Raw binned distributions per direction (entrante / uscente)
+    binsIn:  { a: binRaw(cat.inMap,  cat.hub),  b: catB ? binRaw(catB.inMap,  catB.hub)  : null },
+    binsOut: { a: binRaw(cat.outMap, cat.hub),  b: catB ? binRaw(catB.outMap, catB.hub)  : null },
+    // CO₂ totals per direction (grams/day)
+    co2: {
+      aIn:  cat.totCo2In  || 0, aOut:  cat.totCo2Out || 0,
+      bIn:  catB ? (catB.totCo2In  || 0) : 0,
+      bOut: catB ? (catB.totCo2Out || 0) : 0,
+    },
     swLevels: SW,
-    aSwCo2:   SW.map(p => cat.totCo2In  / 1e6 * (1 - p / 100)),
-    bSwCo2:   catB ? SW.map(p => catB.totCo2In / 1e6 * (1 - p / 100)) : null,
     totals: {
       aIn: cat.totIn,   aOut: cat.totOut,   aIntra: cat.intra,
       bIn:   catB ? catB.totIn   : 0,

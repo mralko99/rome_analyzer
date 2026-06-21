@@ -2,6 +2,7 @@ import React, { useRef, useCallback } from 'react';
 import html2canvas from 'html2canvas';
 import { css } from '../utils/css.js';
 import RankList from './RankList.jsx';
+import CompareCharts from './CompareCharts.jsx';
 
 export default function StatsTab({ v, s, onClearPoint }) {
   const catchmentRef = useRef(null);
@@ -69,6 +70,11 @@ export default function StatsTab({ v, s, onClearPoint }) {
         <div style={css('padding:14px 16px;border-bottom:1px solid #ebeced;display:flex;gap:10px;align-items:flex-start;color:#5c6f82;')}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5c6f82" strokeWidth="2" style={{ flex: 'none', marginTop: '1px' }}><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /><circle cx="12" cy="12" r="4" /></svg>
           <span style={css('font-size:12.5px;line-height:1.4;')}>Seleziona un bacino nel tab Area per vedere le statistiche di flusso.</span>
+        </div>
+      )}
+      {v.hasCatchment && v.compareCharts && (
+        <div style={css('border-bottom:1px solid #ebeced;')}>
+          <CompareCharts charts={v.compareCharts} sectionTitle="Analisi del bacino selezionato" />
         </div>
       )}
       <div style={css('display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:#ebeced;border-bottom:1px solid #ebeced;')}>
