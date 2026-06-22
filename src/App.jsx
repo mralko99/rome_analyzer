@@ -113,6 +113,7 @@ export default class App extends React.Component {
       const feats = []; this.muniName = {}; this.muniBbox = {}; this.muniRings = {};
       municipi.forEach((m) => { this.muniName[m.numero] = m.name; this.muniBbox[m.numero] = m.bbox; this.muniRings[m.numero] = m.rings; m.rings.forEach((r) => feats.push({ type: 'Feature', properties: { n: m.numero }, geometry: { type: 'Polygon', coordinates: [r] } })); });
       this.boundaryGeo = { type: 'FeatureCollection', features: feats };
+      const romaPolys = []; municipi.forEach((m) => m.rings.forEach((r) => romaPolys.push([r]))); this.romaGeo = { type: 'FeatureCollection', features: [{ type: 'Feature', properties: { roma: true }, geometry: { type: 'MultiPolygon', coordinates: romaPolys } }] };
       let _bx0 = Infinity, _by0 = Infinity, _bx1 = -Infinity, _by1 = -Infinity; this.muniLabelData = []; municipi.forEach((m) => { const b = m.bbox; if (b[0] < _bx0) _bx0 = b[0]; if (b[1] < _by0) _by0 = b[1]; if (b[2] > _bx1) _bx1 = b[2]; if (b[3] > _by1) _by1 = b[3]; const pos = this.muniCentroid[m.numero]; if (pos) this.muniLabelData.push({ position: pos, text: m.roman }); }); this.allMuniBbox = [_bx0, _by0, _bx1, _by1];
       this.frazLabelData = frazioni.map((f) => ({ position: [f.lng, f.lat], text: f.name, tipo: f.tipo }));
       this.setState({ loading: false }, () => this.initMap());
@@ -259,7 +260,7 @@ export default class App extends React.Component {
       data: this.data,
       computed: {
         hexData: this.hexData, cat: this.cat, catB: this.catB, vmax: this.vmax, comuniGeo: this.comuniGeo,
-        boundaryGeo: this.boundaryGeo, quartieriGeo: this.quartieriGeo,
+        boundaryGeo: this.boundaryGeo, quartieriGeo: this.quartieriGeo, zoneGeo: this.zoneGeo, romaGeo: this.romaGeo,
         etichetteLabelData: this.etichetteLabelData, comuniLabelData: this.comuniLabelData,
         muniLabelData: this.muniLabelData, frazLabelData: this.frazLabelData,
         mapZoom: this.map ? this.map.getZoom() : 9,
@@ -314,7 +315,10 @@ export default class App extends React.Component {
     if (layer.id === 'conn') { const id = object.id, cat = this.cat; return { html: connTooltipHtml({ locationName: getLocationName(id, cells, muniName, cellComune), inFlow: cat.inMap[id] || 0, outFlow: cat.outMap[id] || 0, co2g: (cat.co2In[id] || 0) + (cat.co2Out[id] || 0) }), style: ttStyle }; }
     if (layer.id === 'internal') { const id = object.id; return { html: internalTooltipHtml({ locationName: getLocationName(id, cells, muniName, cellComune), internalTrips: this.data.metrics.internal[id] || 0 }), style: ttStyle }; }
     if (layer.id === 'nevralgic') { const p = object; return { html: nevralgicTooltipHtml({ tipologia: p.tipologia, nome: p.nome, noteTxt: p.note, raggio: p.raggio_cattura_km }), style: ttStyle }; }
-    if (layer.id === 'comuni-bounds') { const p = object.properties || {}; return { html: comuneTooltipHtml({ name: p.name, istat: p.istat, popolazione: p.popolazione, selectable: this.state.areaLevel === 'comune_esterno' }), style: ttStyle }; }
+    if (layer.id === 'muni-select') { const p = object.properties || {}; return { html: comuneTooltipHtml({ name: this.muniName[p.n] || 'Municipio', selectable: true }), style: ttStyle }; }
+    if (layer.id === 'zona-select') { const p = object.properties || {}; return { html: comuneTooltipHtml({ name: p.tipo ? `${p.name} · ${p.tipo}` : p.name, selectable: true }), style: ttStyle }; }
+    if (layer.id === 'roma-select') { return { html: comuneTooltipHtml({ name: 'Roma (Comune di Roma)', selectable: true }), style: ttStyle }; }
+    if (layer.id === 'comuni-bounds') { const p = object.properties || {}; const lvl = this.state.editTarget === 'B' ? this.state.compareLevel : this.state.areaLevel; return { html: comuneTooltipHtml({ name: p.name, istat: p.istat, popolazione: p.popolazione, selectable: lvl === 'comune_esterno' }), style: ttStyle }; }
     return null;
   }
 
@@ -356,6 +360,7 @@ export default class App extends React.Component {
         const inside = geom.type === 'Polygon' ? this.pip(lng, lat, geom.coordinates[0]) : geom.coordinates.some((poly) => this.pip(lng, lat, poly[0]));
         if (inside) { this.setAreaComuneEsterno(i); return; }
       }
+      for (const n in this.muniRings) { if (this.muniBbox[n] && inBox(lng, lat, this.muniBbox[n]) && this.pipR(lng, lat, this.muniRings[n])) { this.setAreaComuneEsterno('ROMA'); return; } }
     }
   }
   setRadius(v) { this.setState({ radiusKm: +v }); clearTimeout(this._rt); this._rt = setTimeout(() => { if (this.cat && this.cat.circle) { this.computeCatchment(); this.refresh(); } }, 130); }
@@ -398,6 +403,7 @@ export default class App extends React.Component {
         const inside = geom.type === 'Polygon' ? this.pip(lng, lat, geom.coordinates[0]) : geom.coordinates.some((poly) => this.pip(lng, lat, poly[0]));
         if (inside) { this.setCompareComuneEsterno(i); return; }
       }
+      for (const n in this.muniRings) { if (this.muniBbox[n] && inBox(lng, lat, this.muniBbox[n]) && this.pipR(lng, lat, this.muniRings[n])) { this.setCompareComuneEsterno('ROMA'); return; } }
     }
   }
   setAreaLevel(v) { this.cat = null; this.setState({ areaLevel: v, mode: 'city', areaMuni: 0, areaZone: -1, frazId: -1, comuneEsternoId: -1 }, () => { if (v === 'capitale' || v === 'comune') { this.setState({ mode: 'catchment' }, () => { this.computeCatchment(); this.refresh(); }); if (this.map) this.map.flyTo({ center: this.gridCenter, zoom: v === 'capitale' ? 9.2 : 10, duration: 700 }); } else this.refresh(); }); }

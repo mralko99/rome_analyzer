@@ -9,7 +9,7 @@ import PUNTI_NEVRALGICI, { nevralgicoColor } from '../data/puntiNevralgici.js';
  */
 export default function buildLayers(ctx) {
   const { s, data, computed, colors, geo, onNevralgicClick } = ctx;
-  const { hexData, cat, catB, vmax, comuniGeo, boundaryGeo, quartieriGeo,
+  const { hexData, cat, catB, vmax, comuniGeo, boundaryGeo, quartieriGeo, zoneGeo, romaGeo,
           etichetteLabelData, comuniLabelData, muniLabelData, frazLabelData, mapZoom } = computed;
   const { cityColor, ramp, hex2rgb, stopsForMetric, catchStops, mix, connValue } = colors;
   const { circlePoly } = geo;
@@ -17,6 +17,15 @@ export default function buildLayers(ctx) {
   const layers = [];
   const dark = s.basemap === 'dark';
   let connInfo = null;
+
+  // Active selection target (A vs B) — drives the selectable polygon affordances
+  const editingB = s.editTarget === 'B';
+  const selLevel  = editingB ? s.compareLevel : s.areaLevel;
+  const selMuni   = editingB ? s.compareMuni  : s.areaMuni;
+  const selZone   = editingB ? s.compareZone  : s.areaZone;
+  const selComune = editingB ? s.compareComuneEsternoId : s.comuneEsternoId;
+  const selAccent = editingB ? [7, 127, 123] : [0, 51, 102];
+  const selecting = s.tab === 'catchment';
 
   // Hex heatmap
   if (s.heatmap || s.grid) layers.push(new H3HexagonLayer({
@@ -126,10 +135,47 @@ export default function buildLayers(ctx) {
     layers.push(new TextLayer({ id: 'frazlabels', data: frazLabelData, getPosition: (d) => d.position, getText: (d) => d.text, getSize: s.frazLabelSize, getColor: [...fl, 230], getBackgroundColor: dark ? [0, 0, 0, 180] : [240, 255, 253, 215], background: true, backgroundPadding: [4, 2], fontFamily: "'Titillium Web',sans-serif", fontWeight: 600, billboard: false, sizeUnits: 'pixels', getTextAnchor: 'middle', getAlignmentBaseline: 'center', updateTriggers: { getColor: [s.frazLabelColor], getSize: [s.frazLabelSize], getBackgroundColor: [s.basemap] } }));
   }
 
+  // Selectable municipio polygons (active target, Selezione tab)
+  if (selecting && selLevel === 'municipio' && boundaryGeo) {
+    layers.push(new GeoJsonLayer({
+      id: 'muni-select', data: boundaryGeo, stroked: true, filled: true, pickable: true, autoHighlight: true,
+      highlightColor: [...selAccent, 55],
+      getFillColor: (feat) => (feat.properties.n === selMuni) ? [...selAccent, 42] : [...selAccent, 10],
+      getLineColor: [...selAccent, 230],
+      getLineWidth: (feat) => (feat.properties.n === selMuni) ? 2.5 : 1.2, lineWidthUnits: 'pixels', lineWidthMinPixels: 1,
+      updateTriggers: { getFillColor: [selMuni, editingB], getLineWidth: [selMuni], getLineColor: [editingB] },
+    }));
+  }
+
+  // Selectable zona polygons (active target, Selezione tab)
+  if (selecting && selLevel === 'zona' && zoneGeo) {
+    layers.push(new GeoJsonLayer({
+      id: 'zona-select', data: zoneGeo, stroked: true, filled: true, pickable: true, autoHighlight: true,
+      highlightColor: [...selAccent, 55],
+      getFillColor: (feat) => (feat.properties.id === selZone) ? [...selAccent, 42] : [...selAccent, 10],
+      getLineColor: [...selAccent, 230],
+      getLineWidth: (feat) => (feat.properties.id === selZone) ? 2.5 : 1, lineWidthUnits: 'pixels', lineWidthMinPixels: 0.8,
+      updateTriggers: { getFillColor: [selZone, editingB], getLineWidth: [selZone], getLineColor: [editingB] },
+    }));
+  }
+
+  // Selectable Comune di Roma polygon (union of municipi) — Roma is only a 'ROMA' option, not in comuniGeo
+  if (selecting && selLevel === 'comune_esterno' && romaGeo) {
+    const romaSel = selComune === 'ROMA';
+    layers.push(new GeoJsonLayer({
+      id: 'roma-select', data: romaGeo, stroked: true, filled: true, pickable: true, autoHighlight: true,
+      highlightColor: [...selAccent, 55],
+      getFillColor: romaSel ? [...selAccent, 42] : [...selAccent, 10],
+      getLineColor: [...selAccent, 230],
+      getLineWidth: romaSel ? 2.5 : 1.2, lineWidthUnits: 'pixels', lineWidthMinPixels: 1,
+      updateTriggers: { getFillColor: [selComune, editingB], getLineWidth: [selComune], getLineColor: [editingB] },
+    }));
+  }
+
   // Comuni (province) boundaries
-  if ((s.showComuniBounds || s.areaLevel === 'comune_esterno') && comuniGeo) {
+  if ((s.showComuniBounds || selLevel === 'comune_esterno') && comuniGeo) {
     const bc = hex2rgb(s.comuniBorderColor);
-    const selMode = s.areaLevel === 'comune_esterno';
+    const selMode = selLevel === 'comune_esterno';
     layers.push(new GeoJsonLayer({ id: 'comuni-bounds', data: comuniGeo, stroked: true, filled: selMode, getFillColor: [0, 51, 102, 8], pickable: true, autoHighlight: true, highlightColor: [...hex2rgb(s.comuniBorderColor), selMode ? 30 : 60], getLineColor: [...bc, 220], getLineWidth: s.comuniBorderWidth, lineWidthUnits: 'pixels', lineWidthMinPixels: 1, updateTriggers: { getLineColor: [s.comuniBorderColor], getLineWidth: [s.comuniBorderWidth], filled: [selMode] } }));
   }
 
