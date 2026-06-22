@@ -83,7 +83,7 @@ function Seg({ options, value, onChange }) {
 }
 
 // Direction (entrante/uscente) + scale (assoluto/proporzione) controls
-function ChartControls({ dir, setDir, scale, setScale, showDir = true }) {
+function ChartControls({ dir, setDir, scale, setScale, showDir = true, showScale = true }) {
   return (
     <div style={css('display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;')}>
       {showDir && (
@@ -93,11 +93,13 @@ function ChartControls({ dir, setDir, scale, setScale, showDir = true }) {
           options={[{ value: 'in', label: 'Entrante', first: true }, { value: 'out', label: 'Uscente' }]}
         />
       )}
-      <Seg
-        value={scale}
-        onChange={setScale}
-        options={[{ value: 'abs', label: 'Assoluto', first: true }, { value: 'prop', label: 'Proporzione' }]}
-      />
+      {showScale && (
+        <Seg
+          value={scale}
+          onChange={setScale}
+          options={[{ value: 'abs', label: 'Assoluto', first: true }, { value: 'prop', label: 'Proporzione' }]}
+        />
+      )}
     </div>
   );
 }
@@ -174,8 +176,8 @@ export default function CompareCharts({ charts, sectionTitle = 'Analisi comparat
   // Per-chart toggle state (direction + scale)
   const [scale1, setScale1] = useState('abs');
   const [dir2, setDir2] = useState('in'), [scale2, setScale2] = useState('abs');
-  const [dir3, setDir3] = useState('in'), [scale3, setScale3] = useState('prop');
-  const [dir4, setDir4] = useState('in'), [scale4, setScale4] = useState('abs');
+  const [dir3, setDir3] = useState('in');
+  const [dir4, setDir4] = useState('in');
 
   if (!charts) return null;
 
@@ -225,7 +227,7 @@ export default function CompareCharts({ charts, sectionTitle = 'Analisi comparat
   // ── Chart 3: CDF (direction + scale) ─────────────────────────────────────────
   const a3raw = dir3 === 'in' ? binsIn.a : binsOut.a;
   const b3raw = hasB ? (dir3 === 'in' ? binsIn.b : binsOut.b) : null;
-  const isProp3 = scale3 === 'prop';
+  const isProp3 = false;
   const a3cum = cumsum(a3raw), a3tot = a3cum[a3cum.length - 1] || 1;
   const b3cum = b3raw ? cumsum(b3raw) : null, b3tot = b3cum ? (b3cum[b3cum.length - 1] || 1) : 1;
   const aCDF = isProp3 ? a3cum.map((v) => v / a3tot * 100) : a3cum;
@@ -240,7 +242,7 @@ export default function CompareCharts({ charts, sectionTitle = 'Analisi comparat
   // ── Chart 4: Smart working (direction + scale) ───────────────────────────────
   const co2A = (dir4 === 'in' ? co2.aIn : co2.aOut) / 1e6;  // t/g baseline
   const co2B = hasB ? (dir4 === 'in' ? co2.bIn : co2.bOut) / 1e6 : 0;
-  const isProp4 = scale4 === 'prop';
+  const isProp4 = false;
   const aSwCo2 = swLevels.map((p) => (isProp4 ? (1 - p / 100) * 100 : co2A * (1 - p / 100)));
   const bSwCo2 = hasB ? swLevels.map((p) => (isProp4 ? (1 - p / 100) * 100 : co2B * (1 - p / 100))) : null;
   const fmt4 = isProp4 ? ((v) => v.toFixed(0) + '%') : fmtT;
@@ -300,11 +302,13 @@ export default function CompareCharts({ charts, sectionTitle = 'Analisi comparat
             const cx  = BML + (gi + 0.5) * gW;
             const ay  = pyB(g.aVal), ah = bhB(g.aVal);
             const by_ = pyB(g.bVal), bh = bhB(g.bVal);
-            const axc = cx - barGap / 2 - barW / 2;
+            // Single area → one centred bar; two areas → side-by-side pair
+            const aW  = bLabel ? barW : Math.min(28, gW * 0.42);
+            const axc = bLabel ? cx - barGap / 2 - barW / 2 : cx;
             const bxc = cx + barGap / 2 + barW / 2;
             return (
               <g key={gi}>
-                <rect x={axc - barW / 2} y={ay} width={barW} height={ah} rx="2" fill={aColor} opacity="0.85" />
+                <rect x={axc - aW / 2} y={ay} width={aW} height={ah} rx="2" fill={aColor} opacity="0.85" />
                 {bLabel && <rect x={bxc - barW / 2} y={by_} width={barW} height={bh} rx="2" fill={bColor} opacity="0.85" />}
                 <text x={axc} y={ay - 3} textAnchor="middle" fontFamily="Titillium Web" fontSize="7" fill={aColor}>{fmtBar(g.aVal)}</text>
                 {bLabel && <text x={bxc} y={by_ - 3} textAnchor="middle" fontFamily="Titillium Web" fontSize="7" fill={bColor}>{fmtBar(g.bVal)}</text>}
@@ -351,7 +355,7 @@ export default function CompareCharts({ charts, sectionTitle = 'Analisi comparat
         title="Curva CDF · flusso cumulato"
         sub={isProp3 ? `% traffico ${dirLabel(dir3)} entro X km` : `Traffico ${dirLabel(dir3)} cumulato · viaggi/g`}
         onDl={dl3}
-        controls={<ChartControls dir={dir3} setDir={setDir3} scale={scale3} setScale={setScale3} />}
+        controls={<ChartControls dir={dir3} setDir={setDir3} showScale={false} />}
       >
         <LegendLine aLabel={aLabel} bLabel={bLabel} aColor={aColor} bColor={bColor} />
         <svg width="100%" viewBox={`0 0 ${VW} ${VH}`} style={{ display: 'block' }}>
@@ -384,7 +388,7 @@ export default function CompareCharts({ charts, sectionTitle = 'Analisi comparat
         title="Impatto smart working"
         sub={isProp4 ? `CO₂ ${dirLabel(dir4)} · % rispetto al baseline` : `CO₂ ${dirLabel(dir4)} t/g · al variare del tasso SW`}
         onDl={dl4}
-        controls={<ChartControls dir={dir4} setDir={setDir4} scale={scale4} setScale={setScale4} />}
+        controls={<ChartControls dir={dir4} setDir={setDir4} showScale={false} />}
       >
         <LegendLine aLabel={aLabel} bLabel={bLabel} aColor={aColor} bColor={bColor} />
         <svg width="100%" viewBox={`0 0 ${VW} ${VH}`} style={{ display: 'block' }}>

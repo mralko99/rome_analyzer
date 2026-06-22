@@ -112,9 +112,18 @@ export default function CatchmentTab({
       <div>
         <div style={css('font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5c6f82;margin-bottom:7px;')}>Tipologia selezione</div>
         <div style={css('display:flex;gap:5px;')}>
-          <button onClick={() => sel.setMode('radius')} style={segStyle(sel.mode === 'radius')}>Punto</button>
-          <button onClick={() => sel.setMode('area')} style={segStyle(sel.mode === 'area')}>Area</button>
-          <button onClick={onResetActiveSelection} style={{ ...segStyle(false), color: '#cc334d', border: '1px solid #f0c8cf' }}>Reset</button>
+          <button onClick={() => sel.setMode('radius')} style={{ ...segStyle(sel.mode === 'radius'), display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+            Punto
+          </button>
+          <button onClick={() => sel.setMode('area')} style={{ ...segStyle(sel.mode === 'area'), display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round"><path d="M12 2l8.66 5v10L12 22 3.34 17V7L12 2z" /></svg>
+            Area
+          </button>
+          <button onClick={onResetActiveSelection} style={{ ...segStyle(false), display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: '#cc334d', border: '1px solid #f0c8cf' }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
+            Reset
+          </button>
         </div>
       </div>
 
