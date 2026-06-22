@@ -17,10 +17,13 @@ export default class App extends React.Component {
     this.state = {
       loading: true, loadMsg: 'Caricamento dati di mobilità…', errorMsg: '',
       mode: 'city', metric: 'out',
-      heatmap: true, grid: true, showMuniBounds: true, showMuniLabels: true, showQuartieriBounds: false, showQuartieriLabels: false, showNevralgic: false, showFrazioni: false,
-      showComuniBounds: false, showComuniLabels: false,
-      comuniBorderColor: '#7c3aed', comuniBorderWidth: 1.5,
-      comuniLabelColor: '#7c3aed', comuniLabelSize: 11,
+      heatmap: true, grid: true,
+      showComuniBounds: true, showComuniLabels: false,
+      showMuniBounds: true, showMuniLabels: false,
+      showQuartieriBounds: true, showQuartieriLabels: false,
+      showFrazioni: false, showNevralgic: false,
+      comuniBorderColor: '#777777', comuniBorderWidth: 1.0,
+      comuniLabelColor: '#777777', comuniLabelSize: 11,
       muniBorderColor: '#003366', muniBorderWidth: 1.8,
       muniLabelColor: '#003366', muniLabelSize: 13,
       quartieriBorderColor: '#3c64a0', quartieriBorderWidth: 0.8,
@@ -35,20 +38,23 @@ export default class App extends React.Component {
       compareEnabled: false, compareLevel: '', compareMuni: 0, compareZone: -1,
       compareFrazId: -1, compareComuneEsternoId: -1, compareRadiusKm: 0.6,
       compareHasPoint: false, comparePtLng: 0, comparePtLat: 0,
+      compareMode: 'area', compareFlags: { in: true, out: true, internal: true },
+      editTarget: 'A',
     };
     this.RAMPS = {
-      navy: [[219,234,254],[147,196,245],[67,146,224],[0,77,153],[0,40,80]],
-      teal: [[204,255,253],[121,236,232],[11,203,197],[7,127,123],[4,70,68]],
-      ambra: [[248,232,205],[238,182,110],[224,140,67],[204,80,55],[150,25,38]],
-      green: [[232,247,241],[147,217,187],[0,128,85],[0,92,61],[0,56,39]],
+      navy: [[124,176,232],[61,130,201],[31,95,168],[13,61,117],[0,31,64]],
+      teal: [[95,208,199],[37,179,170],[19,143,136],[10,101,95],[3,58,55]],
+      red: [[240,144,158],[223,85,102],[200,32,63],[150,18,48],[92,8,34]],
+      ambra: [[243,192,103],[232,150,56],[219,95,42],[179,51,31],[126,19,32]],
+      green: [[116,199,154],[58,168,109],[31,138,82],[17,96,58],[0,48,31]],
     };
     this.METRIC_DEFAULT_STOPS = {
-      out: [{ pos: 0, hex: '#dbeafe' }, { pos: 1, hex: '#002850' }],
-      inc: [{ pos: 0, hex: '#ccfffd' }, { pos: 1, hex: '#044644' }],
-      co2: [{ pos: 0, hex: '#f8e8cd' }, { pos: 1, hex: '#961926' }],
-      internal: [{ pos: 0, hex: '#e8f7f1' }, { pos: 1, hex: '#003827' }],
+      out: [{ pos: 0, hex: '#7cb0e850' }, { pos: 0.5, hex: '#1f5fa890' }, { pos: 1, hex: '#001f40ff' }],
+      inc: [{ pos: 0, hex: '#f0909e50' }, { pos: 0.5, hex: '#c8203f90' }, { pos: 1, hex: '#5c0822ff' }],
+      internal: [{ pos: 0, hex: '#74c79a50' }, { pos: 0.5, hex: '#1f8a5290' }, { pos: 1, hex: '#00301ff' }],
+      co2: [{ pos: 0, hex: '#f3c06750' }, { pos: 0.5, hex: '#db5f2a90' }, { pos: 1, hex: '#7e1320ff' }],
     };
-    this.metricRamp = { out: 'navy', inc: 'teal', co2: 'ambra', internal: 'green' };
+    this.metricRamp = { out: 'navy', inc: 'red', co2: 'ambra', internal: 'green' };
     this.metricShort = { out: 'Uscenti', inc: 'Entranti', co2: 'CO₂', internal: 'Interno' };
     this.SWATCHES = ['#81ecec', '#ff7675', '#0984e3', '#00b894', '#fdcb6e'];
     this.EF = 117;
@@ -121,12 +127,12 @@ export default class App extends React.Component {
     this.map.on('click', (e) => {
       if (this._nevClick) { this._nevClick = false; return; }
       const _s = this.state, lng = e.lngLat.lng, lat = e.lngLat.lat;
-      if (_s.tab === 'compare') {
-        if (_s.compareLevel === 'punto') this.setComparePoint(lng, lat);
-        else if (_s.compareLevel && _s.compareLevel !== 'capitale') this.setComparePointInArea(lng, lat);
+      if (_s.editTarget === 'B') {
+        if (_s.compareMode === 'area') {
+          if (_s.compareLevel && _s.compareLevel !== 'capitale') this.setComparePointInArea(lng, lat);
+        } else { this.setComparePoint(lng, lat); }
         return;
       }
-      if (_s.catchMode === 'scroll') return;
       if (_s.catchMode === 'area') { this.setPointInArea(lng, lat); } else { this.setPoint(lng, lat); }
     });
     this.map.on('load', () => { if (this.allMuniBbox) { const _b = this.allMuniBbox; this.map.fitBounds([[_b[0], _b[1]], [_b[2], _b[3]]], { padding: 45, animate: false }); } this.updateLayers(); this.updateLegend(); });
@@ -354,6 +360,13 @@ export default class App extends React.Component {
   }
   setRadius(v) { this.setState({ radiusKm: +v }); clearTimeout(this._rt); this._rt = setTimeout(() => { if (this.cat && this.cat.circle) { this.computeCatchment(); this.refresh(); } }, 130); }
   setCatchMode(m) { this.cat = null; this._ptName = null; this.setState({ catchMode: m, mode: 'city', hasPoint: false, areaLevel: '', areaMuni: 0, areaZone: -1, frazId: -1 }, () => this.refresh()); }
+  setEditTarget(t) { this.setState({ editTarget: t }, () => this.refresh()); }
+  setCompareMode(m) { this.catB = null; this.setState({ compareMode: m, compareLevel: '', compareMuni: 0, compareZone: -1, compareFrazId: -1, compareComuneEsternoId: -1, compareHasPoint: false }, () => this.computeCompareB()); }
+  toggleCompareDir(which) { this.setState((s) => ({ compareFlags: { ...s.compareFlags, [which]: !s.compareFlags[which] } }), () => this.refresh()); }
+  resetActiveSelection() {
+    if (this.state.editTarget === 'B') { this.catB = null; this.setState({ compareLevel: '', compareMuni: 0, compareZone: -1, compareFrazId: -1, compareComuneEsternoId: -1, compareHasPoint: false }, () => this.computeCompareB()); }
+    else { this.cat = null; this._ptName = null; this.setState({ hasPoint: false, areaLevel: '', areaMuni: 0, areaZone: -1, frazId: -1, comuneEsternoId: -1, mode: 'city' }, () => this.refresh()); }
+  }
   setCompareLevel(v) { this.setState({ compareLevel: v, compareMuni: 0, compareZone: -1, compareFrazId: -1, compareComuneEsternoId: -1, compareHasPoint: false }, () => this.computeCompareB()); }
   setCompareMuni(v) { this.setState({ compareMuni: +v, compareZone: -1 }, () => this.computeCompareB()); }
   setCompareZone(v) { this.setState({ compareZone: +v }, () => this.computeCompareB()); }
@@ -361,6 +374,7 @@ export default class App extends React.Component {
   setCompareComuneEsterno(v) { const id = v === 'ROMA' ? 'ROMA' : +v; this.setState({ compareComuneEsternoId: id }, () => this.computeCompareB()); }
   setCompareRadius(v) { this.setState({ compareRadiusKm: +v }); clearTimeout(this._compareRt); this._compareRt = setTimeout(() => this.computeCompareB(), 130); }
   setComparePoint(lng, lat) { this.setState({ compareLevel: 'punto', compareHasPoint: true, comparePtLng: lng, comparePtLat: lat }, () => this.computeCompareB()); }
+  setCompareNevralgicPoint(p) { this._nevClick = true; this.setState({ compareLevel: 'punto', compareHasPoint: true, comparePtLng: p.longitudine, comparePtLat: p.latitudine, compareRadiusKm: p.raggio_cattura_km }, () => this.computeCompareB()); if (this.map) this.map.flyTo({ center: [p.longitudine, p.latitudine], zoom: 12, duration: 800 }); }
   setComparePointInArea(lng, lat) {
     const s = this.state;
     if (s.compareLevel === 'municipio') {
@@ -543,7 +557,7 @@ export default class App extends React.Component {
 
   render() {
     const s = this.state, v = this.viewModel();
-    const showClickHint = !s.loading && s.mode === 'city' && s.tab !== 'stats' && s.catchMode !== 'scroll';
+    const showClickHint = !s.loading && s.mode === 'city' && s.tab !== 'stats';
     return (
       <div style={css('display:flex;flex-direction:column;height:100vh;width:100vw;overflow:hidden;background:#f5f5f5;')}>
         <AppHeader onExport={() => this.exportPNG()} />
@@ -592,12 +606,17 @@ export default class App extends React.Component {
             onClearPoint={() => this.clearPoint()}
             onNevralgico={(p) => this.setNevralgicPoint(p)}
             onSetLayerStyle={(k, v) => this.setLayerStyle(k, v)}
+            onSetEditTarget={(t) => this.setEditTarget(t)}
+            onSetCompareMode={(m) => this.setCompareMode(m)}
+            onToggleCompareDir={(w) => this.toggleCompareDir(w)}
+            onResetActiveSelection={() => this.resetActiveSelection()}
             onSetCompareLevel={(v) => this.setCompareLevel(v)}
             onSetCompareMuni={(v) => this.setCompareMuni(v)}
             onSetCompareZone={(v) => this.setCompareZone(v)}
             onSetCompareFraz={(v) => this.setCompareFraz(v)}
             onSetCompareComuneEsterno={(v) => this.setCompareComuneEsterno(v)}
             onSetCompareRadius={(v) => this.setCompareRadius(v)}
+            onSetCompareNevralgico={(p) => this.setCompareNevralgicPoint(p)}
           />
         </div>
       </div>

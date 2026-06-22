@@ -215,7 +215,7 @@ export default function SettingsTab({ s, v, onMetric, onToggle, onSetHeatColor, 
         <div style={css('display:flex;flex-direction:column;gap:6px;')}>
 
           {/* ── Comuni (Provincia) ── */}
-          <LayerRow label="Comuni (Prov. Roma)" accentColor="#7c3aed" open={comuniOpen} onToggleOpen={() => setComuniOpen((o) => !o)}
+          <LayerRow label="Comuni (Prov. Roma)" accentColor="#777777" open={comuniOpen} onToggleOpen={() => setComuniOpen((o) => !o)}
             pills={[
               { label: 'Bordi', active: s.showComuniBounds, onClick: () => onToggle('showComuniBounds') },
               { label: 'Etichette', active: s.showComuniLabels, onClick: () => onToggle('showComuniLabels') },

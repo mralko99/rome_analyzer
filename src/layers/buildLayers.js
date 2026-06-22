@@ -86,8 +86,8 @@ export default function buildLayers(ctx) {
     layers.push(new ScatterplotLayer({ id: 'hub', data: [{ p: cat.hub }], getPosition: (d) => d.p, getFillColor: [255, 200, 0], getRadius: 8, radiusUnits: 'pixels', stroked: true, getLineColor: [0, 51, 102], lineWidthMinPixels: 2.5 }));
   }
 
-  // Area B overlay (Confronto tab)
-  if (s.tab === 'compare' && catB) {
+  // Area B overlay (Confronto tab, or while editing B in the Selezione tab)
+  if ((s.tab === 'compare' || (s.tab === 'catchment' && s.editTarget === 'B')) && catB) {
     const cB = data.cells, memB = [];
     for (let id = 1; id <= cB.maxId; id++) { if (catB.mem[id] && cB.h3[id]) memB.push({ id, h3: cB.h3[id] }); }
     layers.push(new H3HexagonLayer({ id: 'areaB-cells', data: memB, getHexagon: (d) => d.h3, extruded: false, filled: true, stroked: false, getFillColor: [11, 203, 197, 70], pickable: false }));

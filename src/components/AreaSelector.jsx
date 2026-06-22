@@ -21,6 +21,10 @@ export default function AreaSelector({
   zoneOptions     = [],
   frazOptions     = [],
   comuniOptions   = [],
+  poli            = [],
+  hasPoint        = false,
+  ptLat           = 0,
+  ptLng           = 0,
   levels = ['capitale', 'municipio', 'zona', 'frazione', 'comune_esterno'],
   accentColor = '#003366',
   placeholder = null,
@@ -31,6 +35,7 @@ export default function AreaSelector({
   onSetFraz,
   onSetRadius,
   onSetComune,
+  onPolo,
 }) {
   const visible = LEVEL_DEFS.filter(l => levels.includes(l.id));
 
@@ -133,6 +138,26 @@ export default function AreaSelector({
                 </span>
               </div>
               <input type="range" min="0.2" max="10" step="0.1" value={radiusKm} onChange={e => onSetRadius(e.target.value)} />
+            </div>
+          )}
+          {poli.length > 0 && (
+            <div>
+              <div style={lbl}>Poli di interesse</div>
+              <div style={css('display:flex;flex-direction:column;gap:5px;')}>
+                {poli.map((p) => {
+                  const col = p.color;
+                  const active = hasPoint && Math.abs(ptLat - p.latitudine) < 0.0001 && Math.abs(ptLng - p.longitudine) < 0.0001;
+                  return (
+                    <button key={p.id} onClick={() => onPolo?.(p)} style={{ display: 'flex', alignItems: 'center', gap: '9px', height: '38px', padding: '0 11px', border: active ? `2px solid rgb(${col.join(',')})` : '1px solid #ebeced', background: active ? `rgba(${col.join(',')},0.07)` : '#fff', borderRadius: '6px', fontFamily: 'inherit', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
+                      <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: `rgb(${col.join(',')})`, flexShrink: 0, border: '2px solid white', boxShadow: `0 0 0 1.5px rgb(${col.join(',')})` }} />
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ fontSize: '13px', fontWeight: '700', color: '#17324d', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome}</span>
+                        <span style={{ fontSize: '10px', color: '#929da9', fontWeight: '600' }}>{p.tipologia} · {p.raggio_cattura_km} km</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
         </>

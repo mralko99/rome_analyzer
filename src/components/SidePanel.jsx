@@ -16,8 +16,10 @@ export default function SidePanel({
   onSetCatchMode, onSetAreaLevel, onSetAreaMuni, onSetAreaZone, onSetFraz,
   onSetRadius, onToggleDir, onToggleCo2, onClearPoint, onNevralgico,
   onSetLayerStyle, onSetAreaComuneEsterno,
+  onSetEditTarget, onSetCompareMode, onToggleCompareDir, onResetActiveSelection,
   onSetCompareLevel, onSetCompareMuni, onSetCompareZone,
   onSetCompareFraz, onSetCompareComuneEsterno, onSetCompareRadius,
+  onSetCompareNevralgico,
 }) {
   return (
     <div ref={sidePanelRef} style={css('flex:none;width:404px;overflow:hidden;background:#fafafa;')}>
@@ -57,19 +59,17 @@ export default function SidePanel({
               onToggleDir={onToggleDir} onToggleCo2={onToggleCo2} onToggle={onToggle}
               onNevralgico={onNevralgico}
               onSetAreaComuneEsterno={onSetAreaComuneEsterno}
+              onSetEditTarget={onSetEditTarget} onSetCompareMode={onSetCompareMode}
+              onToggleCompareDir={onToggleCompareDir} onResetActiveSelection={onResetActiveSelection}
+              onSetCompareLevel={onSetCompareLevel} onSetCompareMuni={onSetCompareMuni}
+              onSetCompareZone={onSetCompareZone} onSetCompareFraz={onSetCompareFraz}
+              onSetCompareComuneEsterno={onSetCompareComuneEsterno} onSetCompareRadius={onSetCompareRadius}
+              onSetCompareNevralgico={onSetCompareNevralgico}
             />
           )}
           {s.tab === 'stats' && <StatsTab v={v} s={s} onClearPoint={onClearPoint} />}
           {s.tab === 'compare' && (
-            <CompareTab
-              s={s} v={v}
-              onSetCompareLevel={onSetCompareLevel}
-              onSetCompareMuni={onSetCompareMuni}
-              onSetCompareZone={onSetCompareZone}
-              onSetCompareFraz={onSetCompareFraz}
-              onSetCompareComuneEsterno={onSetCompareComuneEsterno}
-              onSetCompareRadius={onSetCompareRadius}
-            />
+            <CompareTab s={s} v={v} />
           )}
         </div>
       </div>
